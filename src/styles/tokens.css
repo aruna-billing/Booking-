@@ -1,0 +1,55 @@
+/* Tokens base (marfil, negro, dorado suave).
+   Cada marca sobrescribe --bg, --ink, --accent, --font-display… mediante brandStyle(). */
+:root {
+  --bg: #f6f2ea;
+  --surface: #fffdf9;
+  --ink: #161513;
+  --muted: #6a645b;
+  --accent: #b08d57;
+  --accent-ink: #ffffff;
+  --line: #e2dacb;
+  --hero: #efe7da;
+  --hero-ink: #161513;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --display-style: normal;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Estados (texto con contraste AA sobre fondos claros) */
+  --green: #2f6b46;
+  --green-bg: #e6f0e8;
+  --amber: #8a5a12;
+  --amber-bg: #f7ecd6;
+  --red: #a23a2e;
+  --red-bg: #f6e3df;
+  --neutral: #59544c;
+  --neutral-bg: #ece7de;
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 2px rgba(22, 21, 19, 0.05), 0 8px 24px -12px rgba(22, 21, 19, 0.18);
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+
+  --max: 1180px;
+  --bar-h: 76px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
