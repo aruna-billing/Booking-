@@ -127,12 +127,26 @@ export function footerSettings(brand: any) {
   return { enabled: f.enabled !== false, terms: TERMS_MODES.includes(f.terms) ? f.terms : 'confirmed' };
 }
 
-/** Logo apto para correo: Gmail y Outlook no muestran SVG ni imágenes incrustadas. */
+const LOGO_WIDTH = { min: 60, max: 320, def: 160 };
+
+export function headerSettings(brand: any) {
+  const h = brand?.web?.emails?.header ?? {};
+  const w = Math.round(Number(h.logoWidth));
+  return {
+    logoWidth: Number.isFinite(w) && w > 0 ? Math.min(LOGO_WIDTH.max, Math.max(LOGO_WIDTH.min, w)) : LOGO_WIDTH.def,
+    align: h.align === 'center' ? 'center' : 'left',
+  };
+}
+
+/** Logo apto para correo: el propio de correos o, si no hay, el de Marcas. Gmail y Outlook no muestran SVG. */
 export function emailLogo(brand: any) {
-  const src = typeof brand?.logo?.src === 'string' ? brand.logo.src : '';
-  if (!src.startsWith('https://')) return '';
-  if (/\.svg(\?|#|$)/i.test(src) || /svg/i.test(brand.logo.type ?? '')) return '';
-  return src;
+  const pick = (img: any) => {
+    const src = typeof img?.src === 'string' ? img.src : '';
+    if (!src.startsWith('https://')) return '';
+    if (/\.svg(\?|#|$)/i.test(src) || /svg/i.test(img.type ?? '')) return '';
+    return src;
+  };
+  return pick(brand?.web?.emails?.logo) || pick(brand?.logo);
 }
 
 export function emailFooter(brand: any, kind: string, terms: any, r: any = {}) {
@@ -167,8 +181,9 @@ export function buildEmail(brand: any, kind: string, r: any, terms: any = null) 
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 16px;line-height:1.55">${lines(p)}</p>`)
     .join('');
+  const head = headerSettings(brand);
   const header = logo
-    ? `<img src="${esc(logo)}" alt="${esc(brand.name)}" width="180" style="display:block;width:auto;max-width:180px;max-height:64px;height:auto;border:0">`
+    ? `<img src="${esc(logo)}" alt="${esc(brand.name)}" width="${head.logoWidth}" style="display:${head.align === 'center' ? 'inline-block' : 'block'};width:${head.logoWidth}px;max-width:100%;height:auto;border:0">`
     : `<strong style="font-size:20px;letter-spacing:.02em">${esc(brand.name)}</strong>`;
   const termsHtml = foot?.terms
     ? `<tr><td style="padding:20px 28px 24px;border-top:1px solid #e6e2db;font-size:12px;line-height:1.5;color:#5c5852">
@@ -179,7 +194,7 @@ ${foot.terms.sections.map((x: any) => `<p style="margin:0 0 8px">${x.title ? `<s
   const html = `<!doctype html><html lang="es"><body style="margin:0;padding:24px 12px;background:#f4f2ee;font-family:Helvetica,Arial,sans-serif;color:${ink}">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-top:4px solid ${accent}" cellspacing="0" cellpadding="0">
-<tr><td style="padding:28px 28px 8px">${header}</td></tr>
+<tr><td align="${head.align}" style="padding:28px 28px 8px;text-align:${head.align}">${header}</td></tr>
 <tr><td style="padding:16px 28px 12px;font-size:15px">${paragraphs}</td></tr>
 ${termsHtml}
 </table>

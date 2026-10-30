@@ -1253,3 +1253,6 @@
 .email-preview__terms p { margin: 0 0 8px; line-height: 1.5; }
 .email-preview__foot { text-align: center; font-size: .75rem; color: #77736b; padding: 10px 6px 2px; overflow-wrap: anywhere; }
 .email-preview__foot p { margin: 0 0 4px; }
+.email-editor__head { display: grid; gap: 10px; }
+.email-editor__head input[type=range] { width: 100%; accent-color: var(--ink, #111); }
+.email-preview__logo img { max-width: 100%; max-height: none; height: auto; }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultEmail, emailFooter, emailLogo, emailTemplate, emailVars, fillTemplate } from '../src/lib/emails.js';
+import { defaultEmail, emailFooter, emailLogo, headerSettings, emailTemplate, emailVars, fillTemplate } from '../src/lib/emails.js';
 
 const brand = { id: 'b', name: 'Estudio', currency: 'DOP', depositPercent: 50, whatsappDisplay: '809-555-0100', bookingType: 'session' };
 const r = { id: 'req-1007', client: { firstName: 'Ana', lastName: 'Pérez' }, planName: 'Plan Pro', date: '2026-11-14', time: '15:30', currency: 'DOP', quote: { total: 8000, deposit: 4000, balance: 4000 } };
@@ -48,4 +48,19 @@ test('logo del correo: solo https y no SVG', () => {
   assert.equal(emailLogo({ logo: { src: 'https://x/a.svg' } }), '');
   assert.equal(emailLogo({ logo: { src: 'data:image/png;base64,AA' } }), '');
   assert.equal(emailLogo({}), '');
+});
+
+test('cabecera del correo: tamaño y posición del logo con límites', () => {
+  assert.deepEqual(headerSettings({}), { logoWidth: 160, align: 'left' });
+  assert.deepEqual(headerSettings({ web: { emails: { header: { logoWidth: 240, align: 'center' } } } }), { logoWidth: 240, align: 'center' });
+  assert.equal(headerSettings({ web: { emails: { header: { logoWidth: 5 } } } }).logoWidth, 60);
+  assert.equal(headerSettings({ web: { emails: { header: { logoWidth: 'x', align: 'right' } } } }).align, 'left');
+});
+
+test('logo para correos: tiene prioridad sobre el de Marcas', () => {
+  const b = { logo: { src: 'https://x/marca.png' }, web: { emails: { logo: { src: 'https://x/correo.jpg' } } } };
+  assert.equal(emailLogo(b), 'https://x/correo.jpg');
+  assert.equal(emailLogo({ ...b, web: { emails: { logo: null } } }), 'https://x/marca.png');
+  assert.equal(emailLogo({ logo: { src: 'https://x/marca.svg' }, web: { emails: { logo: { src: 'https://x/c.png' } } } }), 'https://x/c.png');
+  assert.equal(emailLogo({ logo: { src: 'https://x/marca.png' }, web: { emails: { logo: { src: 'https://x/c.svg' } } } }), 'https://x/marca.png');
 });

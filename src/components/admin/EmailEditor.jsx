@@ -3,8 +3,11 @@ import { Card, Toggle } from './parts.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Field } from '../ui/Field.jsx';
 import { useToast } from '../ui/misc.jsx';
-import { EMAIL_KINDS, EMAIL_VARS, TERMS_MODES, defaultEmail, emailFooter, emailLogo, emailVars, fillTemplate, footerSettings, sampleRequest } from '../../lib/emails.js';
+import { EMAIL_KINDS, EMAIL_VARS, LOGO_WIDTH, TERMS_MODES, defaultEmail, emailFooter, emailLogo, emailLogoSource, emailVars, fillTemplate, footerSettings, headerSettings, sampleRequest } from '../../lib/emails.js';
 import { useDb } from '../../store/mockDb.js';
+import { ImageUpload } from '../ui/ImageUpload.jsx';
+
+const EMAIL_LOGO_OPTS = { accept: ['image/png', 'image/jpeg'], maxInputMB: 5, maxSide: 800, keepTransparency: true, quality: 0.9 };
 import { LIVE } from '../../lib/mode.js';
 import { sendTestEmail } from '../../services/cloud.js';
 
@@ -26,10 +29,13 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
   const draftBrand = { ...brand, web: { ...brand.web, emails: value } };
   const foot = footerSettings(draftBrand);
   const setFoot = (patch) => onChange({ ...value, footer: { ...foot, ...patch } });
+  const head = headerSettings(draftBrand);
+  const setHead = (patch) => onChange({ ...value, header: { ...head, ...patch } });
   // Recién subido (aún sin guardar) el logo es un data URL: al guardar pasa a Storage.
-  const src = brand.logo?.src ?? '';
-  const isSvg = /svg/i.test(brand.logo?.type ?? '') || /^data:image\/svg|\.svg(\?|#|$)/i.test(src);
-  const logo = emailLogo(brand) || (!isSvg && src.startsWith('data:image/') ? src : '');
+  const chosen = emailLogoSource(draftBrand);
+  const src = chosen?.src ?? '';
+  const isSvg = /svg/i.test(chosen?.type ?? '') || /^data:image\/svg|\.svg(\?|#|$)/i.test(src);
+  const logo = emailLogo(draftBrand) || (!isSvg && src.startsWith('data:image/') ? src : '');
   const svgLogo = !logo && isSvg;
   const footer = emailFooter(draftBrand, kind, terms, { acceptedTermsVersion: terms?.version });
 
@@ -79,13 +85,38 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
 
           <fieldset className="email-editor__footer">
             <legend>Logo y pie (los dos correos)</legend>
+            <ImageUpload
+              label="Logo para correos (opcional)"
+              hint="PNG o JPG. Si no subes uno, se usa el logo de Marcas."
+              value={value.logo ?? null}
+              onChange={(img) => onChange({ ...value, logo: img })}
+              options={EMAIL_LOGO_OPTS}
+              aspect="3 / 1"
+              fit="contain"
+              background="#ffffff"
+              testId="email-logo"
+            />
             <p className="muted small">
               {logo
-                ? 'Arriba va el logo de la marca (Marcas → Logo).'
+                ? value.logo?.src ? 'Arriba va el logo para correos.' : 'Arriba va el logo de la marca (Marcas → Logo).'
                 : svgLogo
-                  ? 'El logo es SVG y Gmail/Outlook no lo muestran: arriba va el nombre de la marca. Sube el logo en PNG o JPG en Marcas para que salga.'
-                  : 'Sin logo subido: arriba va el nombre de la marca. Súbelo en Marcas (PNG o JPG).'}
+                  ? 'El logo de Marcas es SVG y Gmail/Outlook no lo muestran: arriba va el nombre de la marca. Sube aquí un logo para correos en PNG o JPG.'
+                  : 'Sin logo: arriba va el nombre de la marca. Sube aquí un logo para correos (PNG o JPG).'}
             </p>
+            <div className="email-editor__head">
+              <Field label="Posición del logo">
+                <div className="seg" role="radiogroup" aria-label="Posición del logo">
+                  {[['left', 'Izquierda'], ['center', 'Centrado']].map(([k, label]) => (
+                    <label key={k} className={`seg__opt ${head.align === k ? 'is-on' : ''}`}>
+                      <input type="radio" name="email-logo-align" checked={head.align === k} onChange={() => setHead({ align: k })} data-testid={`email-logo-align-${k}`} /> {label}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+              <Field label={`Tamaño del logo: ${head.logoWidth} px de ancho`}>
+                <input type="range" min={LOGO_WIDTH.min} max={LOGO_WIDTH.max} step={LOGO_WIDTH.step} value={head.logoWidth} onChange={(e) => setHead({ logoWidth: Number(e.target.value) })} disabled={!logo} data-testid="email-logo-width" />
+              </Field>
+            </div>
             <Toggle checked={foot.enabled} onChange={(v) => setFoot({ enabled: v })} label={foot.enabled ? 'Pie con contacto y términos' : 'Sin pie'} />
             {foot.enabled && (
               <Field label="Términos en el pie" hint={terms?.sections?.length ? `Se usan los de «Términos» (versión ${terms.version}).` : 'Esta marca aún no tiene términos guardados: solo sale el contacto.'}>
@@ -102,8 +133,8 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
           <div className={`email-preview ${enabled ? '' : 'is-off'}`} data-testid="email-preview">
             <p className="email-preview__subject"><span className="muted small">Asunto:</span> {subject}</p>
             <div className="email-preview__body" style={{ borderTopColor: brand.theme?.accent }}>
-              <div className="email-preview__logo" data-testid="email-preview-logo">
-                {logo ? <img src={logo} alt={brand.name} /> : <strong>{brand.name}</strong>}
+              <div className="email-preview__logo" style={{ textAlign: head.align }} data-testid="email-preview-logo">
+                {logo ? <img src={logo} alt={brand.name} style={{ width: head.logoWidth, display: head.align === 'center' ? 'inline-block' : 'block' }} /> : <strong>{brand.name}</strong>}
               </div>
               {body.split(/\n{2,}/).map((p, i) => (
                 <p key={i}>{p.split('\n').map((line, j) => <span key={j}>{j > 0 && <br />}{line}</span>)}</p>

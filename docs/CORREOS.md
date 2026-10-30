@@ -9,7 +9,7 @@ El sistema envía dos correos al cliente:
 
 Los textos se editan en el panel → **Personalización → Correos al cliente**. Cada correo se puede apagar, y los datos (nombre, plan, fecha, hora, montos…) se rellenan solos.
 
-**Logo y pie.** Arriba va el logo de la marca (panel → **Marcas**). Tiene que ser **PNG o JPG**: Gmail y Outlook no muestran SVG; con un SVG, o sin logo, va el nombre de la marca en texto. Abajo va un pie con el contacto (nombre, WhatsApp, correo), la versión de los términos que aceptó el cliente y, según el ajuste **Términos en el pie**, los términos completos (de **Términos** en el panel): solo en «Reserva confirmada» (por defecto), en los dos correos, o ninguno. El pie se puede apagar.
+**Logo y pie.** Arriba va el **logo para correos** (si lo subes en esa misma tarjeta) o, si no, el logo de la marca (panel → **Marcas**). Tiene que ser **PNG o JPG**: Gmail y Outlook no muestran SVG; con un SVG, o sin logo, va el nombre de la marca en texto. Abajo va un pie con el contacto (nombre, WhatsApp, correo), la versión de los términos que aceptó el cliente y, según el ajuste **Términos en el pie**, los términos completos (de **Términos** en el panel): solo en «Reserva confirmada» (por defecto), en los dos correos, o ninguno. El pie se puede apagar. En la misma tarjeta eliges el **tamaño del logo** (60–320 px de ancho) y si va **a la izquierda o centrado**.
 
 Funcionamiento: Supabase avisa a la función `booking-emails` cada vez que se crea o cambia una reserva, y la función envía el correo con **Resend**. No depende del navegador del cliente: si el envío falla, la reserva se guarda igual.
 

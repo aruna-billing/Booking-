@@ -130,12 +130,30 @@ export function footerSettings(brand) {
   return { enabled: f.enabled !== false, terms: TERMS_MODES.some(([k]) => k === f.terms) ? f.terms : 'confirmed' };
 }
 
+// Cabecera: brand.web.emails.header = { logoWidth (px), align: 'left' | 'center' }.
+export const LOGO_WIDTH = { min: 60, max: 320, step: 10, def: 160 };
+
+export function headerSettings(brand) {
+  const h = brand?.web?.emails?.header ?? {};
+  const w = Math.round(Number(h.logoWidth));
+  return {
+    logoWidth: Number.isFinite(w) && w > 0 ? Math.min(LOGO_WIDTH.max, Math.max(LOGO_WIDTH.min, w)) : LOGO_WIDTH.def,
+    align: h.align === 'center' ? 'center' : 'left',
+  };
+}
+
+/** Logo elegido para correos: el propio de correos (Personalización) o, si no hay, el de Marcas. */
+export const emailLogoSource = (brand) => brand?.web?.emails?.logo?.src ? brand.web.emails.logo : brand?.logo ?? null;
+
 /** Logo apto para correo: Gmail y Outlook no muestran SVG ni imágenes incrustadas. */
 export function emailLogo(brand) {
-  const src = typeof brand?.logo?.src === 'string' ? brand.logo.src : '';
-  if (!src.startsWith('https://')) return '';
-  if (/\.svg(\?|#|$)/i.test(src) || /svg/i.test(brand.logo.type ?? '')) return '';
-  return src;
+  const pick = (img) => {
+    const src = typeof img?.src === 'string' ? img.src : '';
+    if (!src.startsWith('https://')) return '';
+    if (/\.svg(\?|#|$)/i.test(src) || /svg/i.test(img.type ?? '')) return '';
+    return src;
+  };
+  return pick(brand?.web?.emails?.logo) || pick(brand?.logo);
 }
 
 /** Contenido del pie: contacto, línea de aceptación y, según el ajuste, los términos completos. */
