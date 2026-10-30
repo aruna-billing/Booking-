@@ -11,6 +11,20 @@ import { Button } from '../../components/ui/Button.jsx';
 import { formatDuration, formatMoney } from '../../lib/format.js';
 import { navigate } from '../../lib/router.jsx';
 import { isEventBrand } from '../../data/brands.js';
+import { useEffect } from 'react';
+import { LIVE } from '../../lib/mode.js';
+import { loadPlanUsage } from '../../services/cloud.js';
+import { availabilityText } from '../../lib/planLimits.js';
+import { formatShortDate } from '../../lib/date.js';
+
+const sessionRange = (l) =>
+  l.sessionFrom && l.sessionTo
+    ? `Sesiones del ${formatShortDate(l.sessionFrom)} al ${formatShortDate(l.sessionTo)}`
+    : l.sessionFrom
+      ? `Sesiones desde el ${formatShortDate(l.sessionFrom)}`
+      : l.sessionTo
+        ? `Sesiones hasta el ${formatShortDate(l.sessionTo)}`
+        : '';
 
 
 /**
@@ -18,7 +32,16 @@ import { isEventBrand } from '../../data/brands.js';
  * Portada → presentación → galería → «Reserva tu cita» con tarjetas horizontales.
  */
 export function StepPlans({ data }) {
-  const { brand, plans, draft, dispatch } = data;
+  const { brand, plans, planAv, draft, dispatch } = data;
+  const hasLimited = plans.some((p) => planAv[p.id]?.limit);
+  // En el sitio real, los cupos usados se consultan al servidor (y se refrescan al volver a la pestaña).
+  useEffect(() => {
+    if (!LIVE || !hasLimited) return;
+    const load = () => loadPlanUsage(brand.id).catch(() => {});
+    load();
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
+  }, [brand.id, hasLimited]);
   const studio = brand.studio ?? {};
   const web = getWeb(brand);
   planTypeFamilies(web.planType).forEach(ensureFont); // carga solo las fuentes elegidas
@@ -71,8 +94,12 @@ export function StepPlans({ data }) {
           {plans.map((p, i) => {
             const selected = draft.planId === p.id;
             const badge = badgeOf(p);
+            const av = planAv[p.id];
+            const closed = !av.open;
+            const status = availabilityText(av, formatShortDate);
+            const range = av.limit ? sessionRange(av.limit) : '';
             return (
-              <li key={p.id} className={`hplan ${selected ? 'is-selected' : ''}`}>
+              <li key={p.id} className={`hplan ${selected ? 'is-selected' : ''} ${closed ? 'is-closed' : ''}`} data-testid={`plan-${p.id}`}>
                 {web.planImages.show ? (
                   <div className="hplan__media">
                     <PlanImage plan={p} ratio="4 / 5" variant={i} />
@@ -95,10 +122,22 @@ export function StepPlans({ data }) {
                     <span className="visually-hidden">Duración: </span>
                     {formatDuration(p.durationMin)} {isEventBrand(brand) ? 'de cobertura' : 'de sesión'}
                   </p>
+                  {range && <p className="hplan__meta hplan__range">{range}</p>}
                   <p className="hplan__price">{formatMoney(p.price, brand.currency)}</p>
-                  <Button onClick={() => choose(p.id)} aria-label={`Reservar ahora ${p.name}, ${formatMoney(p.price, brand.currency)}`}>
-                    {selected ? 'Seleccionado · continuar' : 'Reservar ahora'}
-                  </Button>
+                  {status && (
+                    <p className={`hplan__spots ${closed ? 'is-closed' : ''}`} role={closed ? undefined : 'status'} data-testid="plan-spots">
+                      {status}
+                    </p>
+                  )}
+                  {closed ? (
+                    <Button disabled aria-label={`${p.name}: ${status}`} data-testid="plan-closed">
+                      No disponible
+                    </Button>
+                  ) : (
+                    <Button onClick={() => choose(p.id)} aria-label={`Reservar ahora ${p.name}, ${formatMoney(p.price, brand.currency)}`}>
+                      {selected ? 'Seleccionado · continuar' : 'Reservar ahora'}
+                    </Button>
+                  )}
                 </div>
               </li>
             );

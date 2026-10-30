@@ -13,9 +13,10 @@
 --   · booking_requests   solicitudes de reserva (solo el equipo puede leerlas)
 --   · media              biblioteca de imágenes y videos de la web
 --   · Buckets de Storage: 'media' (público) y 'receipts' (privado: comprobantes)
---   · Funciones: create_booking_request (reservas del público, valida precio y
---     horario en el servidor), get_busy_slots (horarios ocupados, sin datos
---     personales) y add_staff_member (alta de miembros del equipo).
+--   · Funciones: create_booking_request (reservas del público, valida precio,
+--     horario, cupones y cupos en el servidor), get_busy_slots (horarios ocupados,
+--     sin datos personales), get_plan_usage (cupos ocupados de los planes
+--     limitados), check_coupon y add_staff_member (alta de miembros del equipo).
 --
 -- No contiene claves ni datos personales.
 -- ════════════════════════════════════════════════════════════════════════════
@@ -219,7 +220,10 @@ $$;
 -- Cupones de descuento. La lista está en la configuración PRIVADA (solo administradores);
 -- el público solo puede preguntar por un código concreto con esta función.
 -- Devuelve el cupón si se puede usar, o el motivo si no.
-create or replace function public.coupon_check(p_code text, p_brand text, p_email text, p_today date)
+-- (Las versiones anteriores, sin plan, se quitan para que no haya dos con el mismo nombre.)
+drop function if exists public.check_coupon(text, text, text);
+drop function if exists public.coupon_check(text, text, text, date);
+create or replace function public.coupon_check(p_code text, p_brand text, p_email text, p_today date, p_plan text default null)
 returns jsonb
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
@@ -238,6 +242,10 @@ begin
   if jsonb_typeof(v_c->'brandIds') = 'array' and jsonb_array_length(v_c->'brandIds') > 0
      and not ((v_c->'brandIds') ? p_brand) then
     return jsonb_build_object('valid', false, 'message', 'Este cupón no aplica para esta marca.');
+  end if;
+  if p_plan is not null and jsonb_typeof(v_c->'planIds') = 'array' and jsonb_array_length(v_c->'planIds') > 0
+     and not ((v_c->'planIds') ? p_plan) then
+    return jsonb_build_object('valid', false, 'message', 'Este cupón no aplica para el plan elegido.');
   end if;
   if nullif(v_c->>'validFrom', '') is not null and p_today < (v_c->>'validFrom')::date then
     return jsonb_build_object('valid', false, 'message', 'Este cupón todavía no está activo.');
@@ -258,17 +266,32 @@ begin
     return jsonb_build_object('valid', false, 'message', 'Ya usaste este cupón en otra reserva.');
   end if;
   return jsonb_build_object('valid', true, 'code', v_code, 'type', coalesce(v_c->>'type', 'percent'),
-                            'value', coalesce((v_c->>'value')::numeric, 0));
+                            'value', coalesce((v_c->>'value')::numeric, 0),
+                            'planIds', case when jsonb_typeof(v_c->'planIds') = 'array' then v_c->'planIds' else null end);
 end $$;
 
 -- Versión pública: frena los intentos de adivinar códigos con una pequeña espera.
-create or replace function public.check_coupon(p_code text, p_brand text, p_email text default null)
+create or replace function public.check_coupon(p_code text, p_brand text, p_email text default null, p_plan text default null)
 returns jsonb
 language plpgsql volatile security definer set search_path = public, pg_temp as $$
 begin
   perform pg_sleep(0.4);
-  return public.coupon_check(p_code, p_brand, p_email, (now() at time zone 'America/Santo_Domingo')::date);
+  return public.coupon_check(p_code, p_brand, p_email, (now() at time zone 'America/Santo_Domingo')::date, p_plan);
 end $$;
+
+-- Planes limitados: cupos ocupados por plan (solo números, sin datos personales).
+-- Un cupo = una solicitud no cancelada con ese plan.
+create or replace function public.get_plan_usage(p_brand text)
+returns table (plan_id text, used integer)
+language sql stable security definer set search_path = public, pg_temp as $$
+  select r.payload->>'planId', count(*)::integer
+  from public.booking_requests r
+  where r.brand_id = p_brand and r.status <> 'cancelled'
+    and r.payload->>'planId' in (
+      select e->>'id' from public.site_config sc, jsonb_array_elements(coalesce(sc.data->'plans', '[]')) e
+       where sc.id = 'public' and e->>'brandId' = p_brand and coalesce((e->'limit'->>'enabled')::boolean, false))
+  group by 1;
+$$;
 
 -- Reserva del público. Recalcula precio y duración con el catálogo publicado,
 -- vuelve a comprobar el horario y guarda la solicitud. Ignora cualquier precio
@@ -322,6 +345,8 @@ declare
   v_coupon   jsonb;
   v_subtotal integer;
   v_discount integer := 0;
+  v_limit    jsonb;
+  v_used     integer;
 begin
   -- Catálogo publicado
   select data into cfg from public.site_config where id = 'public';
@@ -379,7 +404,7 @@ begin
   if nullif(trim(coalesce(p->>'couponCode', '')), '') is not null then
     -- Un uso a la vez por cupón, para que dos reservas simultáneas no pasen del límite.
     perform pg_advisory_xact_lock(hashtext('coupon|' || upper(trim(p->>'couponCode'))));
-    v_coupon := public.coupon_check(p->>'couponCode', v_brand_id, v_email, v_today);
+    v_coupon := public.coupon_check(p->>'couponCode', v_brand_id, v_email, v_today, v_plan_id);
     if not (v_coupon->>'valid')::boolean then
       raise exception '% Quítalo para continuar.', v_coupon->>'message';
     end if;
@@ -401,6 +426,31 @@ begin
     raise exception 'Fecha no válida.';
   end;
   if v_date is null then raise exception 'Elige una fecha.'; end if;
+
+  -- Plan limitado (mismas reglas que src/lib/planLimits.js): fechas y cupos.
+  -- Un plan a la vez, para que dos reservas simultáneas no pasen del límite.
+  v_limit := v_plan->'limit';
+  if coalesce((v_limit->>'enabled')::boolean, false) then
+    perform pg_advisory_xact_lock(hashtext('plan|' || v_plan_id));
+    if nullif(v_limit->>'saleFrom', '') is not null and v_today < (v_limit->>'saleFrom')::date then
+      raise exception 'Este plan todavía no está disponible.';
+    end if;
+    if (nullif(v_limit->>'saleTo', '') is not null and v_today > (v_limit->>'saleTo')::date)
+       or (nullif(v_limit->>'sessionTo', '') is not null and v_today > (v_limit->>'sessionTo')::date) then
+      raise exception 'Este plan ya no está disponible. Elige otro plan.';
+    end if;
+    if jsonb_typeof(v_limit->'maxBookings') = 'number' and (v_limit->>'maxBookings')::numeric >= 1 then
+      select count(*) into v_used from public.booking_requests
+       where brand_id = v_brand_id and status <> 'cancelled' and payload->>'planId' = v_plan_id;
+      if v_used >= (v_limit->>'maxBookings')::numeric then
+        raise exception 'Este plan ya no tiene cupos disponibles. Elige otro plan.';
+      end if;
+    end if;
+    if (nullif(v_limit->>'sessionFrom', '') is not null and v_date < (v_limit->>'sessionFrom')::date)
+       or (nullif(v_limit->>'sessionTo', '') is not null and v_date > (v_limit->>'sessionTo')::date) then
+      raise exception 'Esa fecha no está disponible para este plan. Elige otra.';
+    end if;
+  end if;
   if v_date < v_today + coalesce((v_rules->>'minNoticeDays')::integer, 0)
      or v_date > v_today + coalesce((v_rules->>'maxAdvanceDays')::integer, 365) then
     raise exception 'Esa fecha ya no se puede reservar. Elige otra.';
@@ -602,9 +652,11 @@ revoke all on function public.create_booking_request(jsonb) from public;
 grant execute on function public.create_booking_request(jsonb) to anon, authenticated;
 revoke all on function public.get_busy_slots(text, date, date) from public;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
-revoke all on function public.check_coupon(text, text, text) from public;
-grant execute on function public.check_coupon(text, text, text) to anon, authenticated;
-revoke all on function public.coupon_check(text, text, text, date) from public, anon, authenticated;
+revoke all on function public.check_coupon(text, text, text, text) from public;
+grant execute on function public.check_coupon(text, text, text, text) to anon, authenticated;
+revoke all on function public.coupon_check(text, text, text, date, text) from public, anon, authenticated;
+revoke all on function public.get_plan_usage(text) from public;
+grant execute on function public.get_plan_usage(text) to anon, authenticated;
 revoke all on function public.add_staff_member(text, text, text, text[]) from public;
 grant execute on function public.add_staff_member(text, text, text, text[]) to authenticated;
 grant execute on function public.is_staff(), public.is_admin(), public.staff_can_see_brand(text) to anon, authenticated;

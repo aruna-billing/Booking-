@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { couponStatus, discountFor, findCoupon, normalizeCode, validateCoupon } from '../src/lib/coupons.js';
+import { cleanPlanIds, couponStatus, discountFor, findCoupon, normalizeCode, validateCoupon } from '../src/lib/coupons.js';
 import { computeQuote } from '../src/lib/pricing.js';
 
 const plan = { id: 'p', price: 8000, durationMin: 60 };
@@ -58,4 +58,15 @@ test('validación del formulario', () => {
   assert.ok(validateCoupon({ ...c10, maxUses: '1.5' }).maxUses);
   assert.ok(validateCoupon({ ...c10, id: 'c2' }, [c10]).code);
   assert.deepEqual(validateCoupon({ ...c10, maxUses: '' }), {});
+});
+
+test('cupón limitado a ciertos planes', () => {
+  const c = { code: 'NAV', type: 'percent', value: 10, active: true, planIds: ['p1'] };
+  assert.equal(couponStatus(c, { brandId: 'b', planId: 'p1', today: '2026-11-01' }).ok, true);
+  assert.match(couponStatus(c, { brandId: 'b', planId: 'p2', today: '2026-11-01' }).reason, /plan elegido/);
+  assert.equal(couponStatus({ ...c, planIds: null }, { planId: 'p2', today: '2026-11-01' }).ok, true);
+  assert.ok(validateCoupon({ ...c, planIds: [] }).planIds);
+  const plans = [{ id: 'p1', brandId: 'a' }, { id: 'p2', brandId: 'b' }];
+  assert.deepEqual(cleanPlanIds(['p1', 'p2', 'x'], plans, ['a']), ['p1']);
+  assert.equal(cleanPlanIds(null, plans), null);
 });

@@ -57,18 +57,32 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
 
 ## Al actualizar a una versión nueva
 
-Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_instalacion.sql`** completo en el SQL Editor. No borra datos y añade lo nuevo (por ejemplo, la comprobación de cupones). Si usas Google Calendar, actualiza también la función `google-calendar` con el `index.ts` nuevo.
+Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_instalacion.sql`** completo en el SQL Editor. No borra datos y añade lo nuevo (por ejemplo, la comprobación de cupones, los cupones por plan y los planes con cupos). Si usas Google Calendar, actualiza también la función `google-calendar` con el `index.ts` nuevo.
 
 ## Cupones de descuento
 
 En el panel → **Cupones**:
 - **Tipo de descuento:** porcentaje o monto fijo. Se aplica al total (plan + extras) y el anticipo se calcula ya con el descuento.
 - **Fechas:** desde y hasta qué fecha se puede usar. Cuenta el día en que el cliente envía la reserva.
+- **Marcas y planes:** para todas las marcas o solo algunas, y para todos sus planes o solo los que marques. Si el cliente elige otro plan, el cupón no aplica (y se quita solo si cambia de plan).
 - **Usos:** cuántas reservas pueden usarlo en total y, si quieres, solo una vez por cliente (por correo). Si una reserva con cupón se cancela, ese uso se libera.
 - **Borrar:** un cupón que ya se usó no se puede borrar, solo desactivar, para no perder el historial.
 - **Mostrar el campo:** el interruptor de arriba muestra u oculta «¿Tienes un cupón?» en la web.
 
 **Seguridad:** la lista de cupones está en la configuración privada; el público nunca la ve. El navegador solo pregunta por un código concreto (`check_coupon`), con una pequeña espera para frenar a quien intente adivinar códigos. Al enviar la reserva, el servidor vuelve a comprobar el cupón y calcula el descuento él mismo.
+
+## Planes limitados (cupos y fechas)
+
+En el panel → **Planes y extras** → editar un plan → **Plan limitado**:
+- **Cupos:** cuántas reservas acepta en total. Al llenarse, el plan se bloquea solo en la web. Si una reserva se cancela, su cupo se libera.
+- **Se puede reservar desde / hasta:** los días en que el plan está a la venta.
+- **Fechas de sesión:** el calendario solo ofrece esos días para ese plan (por ejemplo, mini sesiones del 1 al 20 de diciembre).
+- **Textos:** el aviso de cupos («Quedan {n} cupos», con emojis si quieres) y el texto cuando se agota.
+- **Cuando se agota o vence:** se ve bloqueado o se oculta de la web.
+
+En la lista de planes se ve cuántos cupos van ocupados. El nombre, precio, descripción, imagen y etiqueta del plan se editan como en cualquier otro plan.
+
+**Seguridad:** el servidor vuelve a comprobar cupos y fechas al recibir cada reserva, con un bloqueo para que dos personas no se lleven el último cupo a la vez. El público solo ve cuántos cupos van ocupados (`get_plan_usage`), sin datos personales.
 
 ## Qué hace el servidor (y por qué es seguro)
 

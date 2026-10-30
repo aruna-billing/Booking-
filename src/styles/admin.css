@@ -1256,3 +1256,25 @@
 .email-editor__head { display: grid; gap: 10px; }
 .email-editor__head input[type=range] { width: 100%; accent-color: var(--ink, #111); }
 .email-preview__logo img { max-width: 100%; max-height: none; height: auto; }
+
+/* Cupones: planes */
+.coupon-plan-list { display: grid; gap: 8px; margin-top: 4px; }
+.coupon-plan-group { display: grid; gap: 2px; }
+.coupon-plan-group__title { margin: 4px 0 0; font-weight: 600; }
+.cell-plans { overflow-wrap: anywhere; }
+
+/* Planes limitados */
+.plan-limit { display: grid; gap: 12px; }
+.plan-limit p { margin: 0; }
+.plan-limit__used { display: grid; gap: 4px; align-content: start; }
+.plan-limit__used strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.plan-limit .fieldset { margin: 0; }
+.limit-chip { display: inline-block; margin-top: 4px; padding: 1px 8px; font-size: .75rem; font-weight: 600; border: 1px solid #c9a227; background: #fdf6e3; color: #6b5310; width: fit-content; }
+.limit-chip.is-closed { border-color: var(--line, #dad7d2); background: #f1efeb; color: #5c5852; }
+.badge-picker__emoji input { width: 76px; text-align: center; font-size: 1.15rem; }
+.badge-picker__emojis { margin-top: 10px; }
+.badge-picker__emojis p { margin: 0 0 6px; }
+.badge-picker__quick { display: flex; flex-wrap: wrap; gap: 4px; }
+.emoji-btn { width: 36px; height: 36px; display: inline-grid; place-items: center; font-size: 1.1rem; border: 1px solid var(--line, #dad7d2); background: #fff; cursor: pointer; padding: 0; }
+.emoji-btn:hover { border-color: var(--ink, #111); }
+.emoji-btn.is-on { border-color: var(--ink, #111); box-shadow: 0 0 0 1px var(--ink, #111); }

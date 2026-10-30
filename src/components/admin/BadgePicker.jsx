@@ -1,4 +1,4 @@
-import { BADGE_MAX, BADGE_PRESETS, EMOJIS, badgeOf } from '../../lib/badges.js';
+import { BADGE_MAX, BADGE_PRESETS, EMOJIS, badgeOf, cleanEmoji } from '../../lib/badges.js';
 import { BadgeChip } from '../ui/BadgeChip.jsx';
 
 /** Elegir la etiqueta de un plan o extra: ninguna, una de la lista o una propia. */
@@ -36,11 +36,16 @@ export function BadgePicker({ item, onChange, kind }) {
       {custom && (
         <div className="badge-picker__custom">
           <label className="badge-picker__emoji">
-            <span className="visually-hidden">Emoji</span>
-            <select value={raw?.emoji ?? ''} onChange={(e) => onChange({ ...raw, emoji: e.target.value })} data-testid="badge-emoji">
-              <option value="">Sin emoji</option>
-              {EMOJIS.map((e) => <option key={e} value={e}>{e}</option>)}
-            </select>
+            <span className="visually-hidden">Emoji (escribe o pega el que quieras)</span>
+            <input
+              value={raw?.emoji ?? ''}
+              onChange={(e) => onChange({ ...raw, emoji: cleanEmoji(e.target.value) })}
+              placeholder="🙂"
+              aria-describedby="badge-emoji-hint"
+              inputMode="text"
+              autoComplete="off"
+              data-testid="badge-emoji"
+            />
           </label>
           <label className="badge-picker__text">
             <span className="visually-hidden">Texto de la etiqueta</span>
@@ -52,6 +57,21 @@ export function BadgePicker({ item, onChange, kind }) {
               data-testid="badge-text"
             />
           </label>
+        </div>
+      )}
+      {custom && (
+        <div className="badge-picker__emojis">
+          <p className="muted small" id="badge-emoji-hint">
+            Escribe o pega cualquier emoji (en el celular, con el teclado de emojis; en Windows, tecla Windows + punto; en Mac, Ctrl + Cmd + espacio). O elige uno:
+          </p>
+          <div className="badge-picker__quick" role="group" aria-label="Emojis rápidos">
+            <button type="button" className={`emoji-btn ${!raw?.emoji ? 'is-on' : ''}`} onClick={() => onChange({ ...raw, emoji: '' })} aria-label="Sin emoji">∅</button>
+            {EMOJIS.map((e) => (
+              <button key={e} type="button" className={`emoji-btn ${raw?.emoji === e ? 'is-on' : ''}`} onClick={() => onChange({ ...raw, emoji: e })} aria-label={`Usar ${e}`}>
+                {e}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {current && (

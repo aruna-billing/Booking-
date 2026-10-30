@@ -14,7 +14,8 @@ import { getCurrentUser, requirePermission } from '../lib/auth.js';
 import { LIVE } from '../lib/mode.js';
 import { agendaRequests } from '../lib/busy.js';
 import { cleanRules, validateRules } from '../lib/rules.js';
-import { couponStatus, findCoupon, normalizeCode, validateCoupon } from '../lib/coupons.js';
+import { planBookingError, planLimit, planUses } from '../lib/planLimits.js';
+import { cleanPlanIds, couponStatus, findCoupon, normalizeCode, validateCoupon } from '../lib/coupons.js';
 import { chargeLine, recomputeQuote, validateCharge } from '../lib/charges.js';
 import * as cloud from './cloud.js';
 
@@ -81,12 +82,14 @@ export async function createBookingRequest(draft) {
   const brand = s.brands.find((b) => b.id === draft.brandId);
   const plan = s.plans.find((p) => p.id === draft.planId);
   if (!brand || !plan) throw new Error('Plan o marca no válidos.');
+  const planError = planBookingError(plan, { today: localToday(), used: planUses(plan.id, s.requests), date: draft.date });
+  if (planError) throw new Error(planError);
 
   // Cupón: se vuelve a comprobar al enviar (fechas, usos y una vez por cliente).
   let coupon = null;
   if (draft.coupon?.code) {
     const found = findCoupon(s.coupons, draft.coupon.code);
-    const st = couponStatus(found, { brandId: brand.id, today: localToday(), requests: s.requests, email: draft.details.email });
+    const st = couponStatus(found, { brandId: brand.id, planId: plan.id, today: localToday(), requests: s.requests, email: draft.details.email });
     if (!st.ok) throw new Error(`${st.reason} Quítalo para continuar.`);
     coupon = found;
   }
@@ -161,6 +164,13 @@ async function createBookingRequestLive(draft) {
     throw new Error('Espera a que terminen de subir tus archivos.');
   }
 
+  // Cupos del plan (el servidor lo vuelve a comprobar con bloqueo).
+  if (planLimit(plan)) {
+    const usage = await cloud.loadPlanUsage(brand.id).catch(() => null);
+    const planError = usage && planBookingError(plan, { today: localToday(), used: usage[plan.id] ?? 0, date: draft.date });
+    if (planError) throw new Error(planError);
+  }
+
   // Comprobación rápida con la agenda actual (el servidor vuelve a comprobarlo).
   const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon: draft.coupon ?? null });
   try {
@@ -213,6 +223,7 @@ async function createBookingRequestLive(draft) {
   };
   setState((st) => ({ ...st, requests: [request, ...st.requests.filter((r) => r.id !== request.id)] }));
   cloud.loadBusySlots(brand.id).catch(() => {});
+  if (planLimit(plan)) cloud.loadPlanUsage(brand.id).catch(() => {});
   return request;
 }
 
@@ -687,22 +698,23 @@ const localToday = () => {
  * el descuento ({ code, type, value }) o lanza un error con el motivo.
  * En modo real lo decide el servidor (check_coupon): el público nunca ve la lista.
  */
-export async function checkCoupon(code, brandId, email) {
+export async function checkCoupon(code, brandId, email, planId) {
   const c = normalizeCode(code);
   if (!c) throw new Error('Escribe el código del cupón.');
-  if (LIVE) return cloud.checkCoupon(c, brandId, email);
+  if (LIVE) return cloud.checkCoupon(c, brandId, email, planId);
   await delay(300);
   const s = getState();
   const coupon = findCoupon(s.coupons, c);
   if (!coupon) throw new Error('Este cupón no es válido.');
-  const st = couponStatus(coupon, { brandId, today: localToday(), requests: s.requests, email });
+  const st = couponStatus(coupon, { brandId, planId, today: localToday(), requests: s.requests, email });
   if (!st.ok) throw new Error(st.reason);
-  return { code: normalizeCode(coupon.code), type: coupon.type, value: Number(coupon.value) };
+  return { code: normalizeCode(coupon.code), type: coupon.type, value: Number(coupon.value), planIds: coupon.planIds?.length ? coupon.planIds : null };
 }
 
-export async function saveCoupon(coupon) {
+export async function saveCoupon(input) {
   requirePermission('coupons.manage');
   const s = getState();
+  const coupon = { ...input, planIds: cleanPlanIds(input.planIds, s.plans, input.brandIds) };
   const errors = validateCoupon(coupon, s.coupons);
   if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
   await delay(200);

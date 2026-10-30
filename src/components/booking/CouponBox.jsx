@@ -18,7 +18,7 @@ export function CouponBox({ brand, draft, dispatch, quote }) {
     setBusy(true);
     setError(null);
     try {
-      const coupon = await checkCoupon(code, brand.id, draft.details?.email);
+      const coupon = await checkCoupon(code, brand.id, draft.details?.email, draft.planId);
       dispatch({ type: 'setCoupon', coupon });
       setCode('');
       setOpen(false);

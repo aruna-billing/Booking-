@@ -45,6 +45,7 @@ export function Coupons() {
     type: 'percent',
     value: 10,
     brandIds: null,
+    planIds: null,
     validFrom: todayIso,
     validTo: '',
     maxUses: '',
@@ -98,6 +99,9 @@ export function Coupons() {
                       {c.brandIds?.length ? (
                         <span className="cell-brands">{c.brandIds.map((id) => db.brands.find((b) => b.id === id)).filter(Boolean).map((b) => <BrandDot key={b.id} brand={b} withName />)}</span>
                       ) : null}
+                      {c.planIds?.length ? (
+                        <span className="muted small cell-plans" data-testid="coupon-plans"> · Solo: {c.planIds.map((id) => db.plans.find((p) => p.id === id)?.name).filter(Boolean).join(', ')}</span>
+                      ) : null}
                     </td>
                     <td data-label="Descuento">{couponLabel(c, money)}</td>
                     <td data-label="Vigencia">{vigencia(c)}</td>
@@ -127,6 +131,7 @@ export function Coupons() {
           editing={editing}
           coupons={coupons}
           brands={db.brands}
+          plans={db.plans}
           uses={couponUses(editing.item, db.requests)}
           money={money}
           onClose={() => setEditing(null)}
@@ -136,7 +141,7 @@ export function Coupons() {
   );
 }
 
-function CouponEditor({ editing, coupons, brands, uses, money, onClose }) {
+function CouponEditor({ editing, coupons, brands, plans, uses, money, onClose }) {
   const toast = useToast();
   const [c, setC] = useState(() => ({ ...editing.item, maxUses: editing.item.maxUses ?? '' }));
   const [tried, setTried] = useState(false);
@@ -144,6 +149,10 @@ function CouponEditor({ editing, coupons, brands, uses, money, onClose }) {
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const set = (patch) => setC((x) => ({ ...x, ...patch }));
+  // Al quitar una marca se quitan también sus planes de la lista.
+  const setBrands = (brandIds) => setC((x) => ({ ...x, brandIds, planIds: x.planIds ? x.planIds.filter((id) => !brandIds || brandIds.includes(plans.find((p) => p.id === id)?.brandId)) : null }));
+  const planBrands = brands.filter((b) => !c.brandIds || c.brandIds.includes(b.id));
+  const allPlans = !c.planIds;
   const errors = validateCoupon(c, coupons);
   const err = (k) => (tried ? errors[k] : undefined);
   const allBrands = !c.brandIds;
@@ -244,17 +253,46 @@ function CouponEditor({ editing, coupons, brands, uses, money, onClose }) {
           <fieldset className="fieldset">
             <legend className="field__label">Marcas</legend>
             <label className="check-inline">
-              <input type="checkbox" checked={allBrands} onChange={(e) => set({ brandIds: e.target.checked ? null : [] })} /> Todas las marcas
+              <input type="checkbox" checked={allBrands} onChange={(e) => setBrands(e.target.checked ? null : [])} data-testid="coupon-all-brands" /> Todas las marcas
             </label>
             {!allBrands &&
               brands.map((b) => (
                 <label key={b.id} className="check-inline">
-                  <input type="checkbox" checked={c.brandIds.includes(b.id)} onChange={(e) => set({ brandIds: e.target.checked ? [...c.brandIds, b.id] : c.brandIds.filter((x) => x !== b.id) })} /> {b.name}
+                  <input type="checkbox" checked={c.brandIds.includes(b.id)} onChange={(e) => setBrands(e.target.checked ? [...c.brandIds, b.id] : c.brandIds.filter((x) => x !== b.id))} data-testid={`coupon-brand-${b.id}`} /> {b.name}
                 </label>
               ))}
             {err('brandIds') && <p className="field__error" role="alert">{err('brandIds')}</p>}
           </fieldset>
         )}
+
+        <fieldset className="fieldset" data-testid="coupon-plans-field">
+          <legend className="field__label">Planes</legend>
+          <label className="check-inline">
+            <input type="checkbox" checked={allPlans} onChange={(e) => set({ planIds: e.target.checked ? null : [] })} data-testid="coupon-all-plans" />{' '}
+            {brands.length > 1 && c.brandIds ? 'Todos los planes de las marcas elegidas' : 'Todos los planes'}
+          </label>
+          {!allPlans && (
+            <div className="coupon-plan-list">
+              {planBrands.map((b) => {
+                const list = plans.filter((p) => p.brandId === b.id);
+                if (!list.length) return null;
+                return (
+                  <div key={b.id} className="coupon-plan-group">
+                    {planBrands.length > 1 && <p className="muted small coupon-plan-group__title">{b.name}</p>}
+                    {list.map((p) => (
+                      <label key={p.id} className="check-inline">
+                        <input type="checkbox" checked={c.planIds.includes(p.id)} onChange={(e) => set({ planIds: e.target.checked ? [...c.planIds, p.id] : c.planIds.filter((x) => x !== p.id) })} data-testid={`coupon-plan-${p.id}`} />{' '}
+                        {p.name}{p.active === false && <span className="muted small"> (inactivo)</span>}
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {err('planIds') && <p className="field__error" role="alert">{err('planIds')}</p>}
+          <p className="muted small">El descuento se aplica al total (plan + extras) solo si el cliente elige uno de estos planes.</p>
+        </fieldset>
 
         <Toggle checked={c.active} onChange={(v) => set({ active: v })} label={c.active ? 'Activo: se puede usar' : 'Desactivado: nadie puede usarlo'} />
       </div>

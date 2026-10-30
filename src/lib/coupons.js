@@ -5,6 +5,7 @@
 //   id, code, description,
 //   type: 'percent' | 'fixed', value,      // 10 = 10 %, o RD$ 10
 //   brandIds: null | string[],             // null = todas las marcas
+//   planIds: null | string[],              // null = todos los planes (de esas marcas)
 //   validFrom: 'YYYY-MM-DD' | '', validTo: 'YYYY-MM-DD' | '',   // fechas en que se puede usar (incluidas)
 //   maxUses: number | null,                // reservas que pueden usarlo en total (null = sin límite)
 //   onePerClient: boolean,                 // un uso por correo electrónico
@@ -23,9 +24,10 @@ export const couponUses = (coupon, requests = []) =>
  * ¿Se puede usar este cupón ahora?
  * @returns {{ ok: true } | { ok: false, reason: string }}
  */
-export function couponStatus(coupon, { brandId, today, requests = [], email } = {}) {
+export function couponStatus(coupon, { brandId, planId, today, requests = [], email } = {}) {
   if (!coupon || coupon.active === false) return { ok: false, reason: 'Este cupón no es válido.' };
   if (coupon.brandIds?.length && brandId && !coupon.brandIds.includes(brandId)) return { ok: false, reason: 'Este cupón no aplica para esta marca.' };
+  if (coupon.planIds?.length && planId && !coupon.planIds.includes(planId)) return { ok: false, reason: 'Este cupón no aplica para el plan elegido.' };
   if (coupon.validFrom && today < coupon.validFrom) return { ok: false, reason: 'Este cupón todavía no está activo.' };
   if (coupon.validTo && today > coupon.validTo) return { ok: false, reason: 'Este cupón ya expiró.' };
   const uses = couponUses(coupon, requests);
@@ -34,6 +36,15 @@ export function couponStatus(coupon, { brandId, today, requests = [], email } = 
     return { ok: false, reason: 'Ya usaste este cupón en otra reserva.' };
   }
   return { ok: true };
+}
+
+/** ¿El cupón (ya comprobado) sirve para este plan? Sin lista de planes = sí. */
+export const couponFitsPlan = (coupon, planId) => !coupon?.planIds?.length || coupon.planIds.includes(planId);
+
+/** Deja solo los planes que existen y pertenecen a las marcas elegidas (null = todos). */
+export function cleanPlanIds(planIds, plans = [], brandIds = null) {
+  if (!Array.isArray(planIds)) return null;
+  return planIds.filter((id) => plans.some((p) => p.id === id && (!brandIds?.length || brandIds.includes(p.brandId))));
 }
 
 /** Busca un cupón por código (sin distinguir mayúsculas). */
@@ -62,5 +73,6 @@ export function validateCoupon(c, others = []) {
   if (c.validFrom && c.validTo && c.validTo < c.validFrom) e.validTo = 'La fecha final debe ser igual o posterior a la inicial.';
   if (c.maxUses !== null && c.maxUses !== '' && c.maxUses !== undefined && !(Number.isInteger(Number(c.maxUses)) && Number(c.maxUses) >= 1)) e.maxUses = 'Escribe un número entero (1 o más), o déjalo vacío para no limitar.';
   if (c.brandIds && c.brandIds.length === 0) e.brandIds = 'Elige al menos una marca.';
+  if (c.planIds && c.planIds.length === 0) e.planIds = 'Elige al menos un plan.';
   return e;
 }

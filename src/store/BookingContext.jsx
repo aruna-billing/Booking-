@@ -32,7 +32,13 @@ function reducer(state, action) {
       return state.brandId === action.brandId && !state.submittedRequestId ? state : emptyDraft(action.brandId);
     case 'selectPlan':
       // Al cambiar de plan se descartan extras que no apliquen (se filtran en la vista).
-      return { ...state, planId: action.planId, extras: action.keepExtras ?? {} };
+      // Un cupón limitado a ciertos planes se quita si el nuevo plan no está entre ellos.
+      return {
+        ...state,
+        planId: action.planId,
+        extras: action.keepExtras ?? {},
+        coupon: state.coupon?.planIds?.length && !state.coupon.planIds.includes(action.planId) ? null : state.coupon,
+      };
     case 'setExtra': {
       const extras = { ...state.extras };
       if (!action.qty) delete extras[action.extraId];

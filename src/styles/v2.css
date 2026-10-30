@@ -2449,3 +2449,30 @@ ul.site-footer__links {
 .notice__title { font-weight: 600; margin: 0 0 2px; }
 .notice__text { margin: 0; color: color-mix(in srgb, var(--ink) 80%, transparent); white-space: pre-line; }
 @media (prefers-reduced-motion: reduce) { .faq__icon { transition: none; } }
+
+/* ───────── Planes limitados ───────── */
+.hplan__range { margin-top: -2px; }
+.hplan__spots {
+  display: inline-flex;
+  align-self: start;
+  justify-self: start;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 10px;
+  padding: 3px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent, #c8102e) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #c8102e) 45%, transparent);
+}
+.hplan__spots.is-closed {
+  background: var(--surface-2, #f1efeb);
+  border-color: var(--line);
+  color: var(--muted);
+}
+.hplan.is-closed .hplan__media,
+.hplan.is-closed .hplan__name,
+.hplan.is-closed .hplan__price { opacity: 0.55; }
+.hplan.is-closed .hplan__media { filter: grayscale(0.7); }

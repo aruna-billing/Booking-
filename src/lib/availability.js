@@ -55,10 +55,10 @@ function bookedBlocks(brandId, iso, requests, rules) {
 
 /**
  * Disponibilidad de un día para una sesión de `durationMin` minutos.
- * @param {object} ctx { brandId, rules, blockedDates, requests }
+ * @param {object} ctx { brandId, rules, blockedDates, requests, window? { from, to } }
  * @returns {{status, reason?, slots: {time, end, available}[]}}
  */
-export function getDayAvailability(iso, { brandId, rules, blockedDates = [], requests = [] }, durationMin) {
+export function getDayAvailability(iso, { brandId, rules, blockedDates = [], requests = [], window = null }, durationMin) {
   const dur = durationMin || rules.defaultDurationMin;
   const date = parseISODate(iso);
   const t = today();
@@ -67,6 +67,8 @@ export function getDayAvailability(iso, { brandId, rules, blockedDates = [], req
 
   if (date < t) return { status: 'past', slots: [] };
   if (date < first || date > last) return { status: 'out_of_range', slots: [] };
+  // Plan limitado a ciertas fechas de sesión.
+  if (window && ((window.from && iso < window.from) || (window.to && iso > window.to))) return { status: 'out_of_range', slots: [] };
   if (!rules.workingDays.includes(date.getDay())) return { status: 'closed', slots: [] };
   const block = blockedDates.find((b) => b.brandId === brandId && b.date === iso);
   if (block) return { status: 'blocked', reason: block.reason, slots: [] };

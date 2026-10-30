@@ -205,11 +205,11 @@ export async function createRequest(input) {
 }
 
 /** Público: comprueba un cupón en el servidor (sin ver la lista de cupones). */
-export async function checkCoupon(code, brandId, email) {
-  const { data, error } = await supabase.rpc('check_coupon', { p_code: code, p_brand: brandId, p_email: email || null });
+export async function checkCoupon(code, brandId, email, planId) {
+  const { data, error } = await supabase.rpc('check_coupon', { p_code: code, p_brand: brandId, p_email: email || null, p_plan: planId || null });
   if (error) throw fail(error, 'No se pudo comprobar el cupón.');
   if (!data?.valid) throw new Error(data?.message || 'Este cupón no es válido.');
-  return { code: data.code, type: data.type, value: Number(data.value) };
+  return { code: data.code, type: data.type, value: Number(data.value), planIds: Array.isArray(data.planIds) && data.planIds.length ? data.planIds : null };
 }
 
 /**
@@ -232,6 +232,15 @@ export async function loadBusySlots(brandId) {
   ];
   setState((s) => ({ ...s, busy: { ...(s.busy ?? {}), [brandId]: list } }));
   return list;
+}
+
+/** Público: cupos usados de los planes limitados de una marca (sin datos personales). */
+export async function loadPlanUsage(brandId) {
+  const { data, error } = await supabase.rpc('get_plan_usage', { p_brand: brandId });
+  if (error) throw fail(error, 'No se pudieron consultar los cupos.');
+  const usage = Object.fromEntries((data ?? []).map((r) => [r.plan_id, Number(r.used) || 0]));
+  setState((s) => ({ ...s, planUsage: { ...(s.planUsage ?? {}), ...usage } }));
+  return usage;
 }
 
 // ───────────────────────── Google Calendar (función google-calendar) ─────────────────────────

@@ -1,4 +1,7 @@
 import { BadgePicker } from '../../components/admin/BadgePicker.jsx';
+import { PlanLimitEditor } from '../../components/admin/PlanLimitEditor.jsx';
+import { availabilityText, planAvailability, planUses, validateLimit } from '../../lib/planLimits.js';
+import { formatShortDate, toISODate, today } from '../../lib/date.js';
 import { BadgeChip } from '../../components/ui/BadgeChip.jsx';
 import { badgeOf } from '../../lib/badges.js';
 import { useState } from 'react';
@@ -63,6 +66,7 @@ export function Catalog() {
                     <div className="cat-item__info">
                       <strong>{p.name}{badgeOf(p) && <> <BadgeChip badge={badgeOf(p)} /></>}</strong>
                       <span className="muted small">{p.category} · {formatDuration(p.durationMin)}</span>
+                      <LimitChip plan={p} requests={db.requests} />
                     </div>
                     <span className="cat-item__price">{formatMoney(p.price, brand.currency)}</span>
                     <Toggle checked={p.active} label={p.active ? 'Visible' : 'Oculto'} onChange={(v) => api.savePlan({ ...p, active: v }).then((ok) => toast(ok === false ? api.SAVE_FAILED : v ? 'Plan visible' : 'Plan oculto', ok === false ? 'red' : undefined))} />
@@ -99,6 +103,7 @@ export function Catalog() {
           key={editing.item.id}
           editing={editing}
           plans={db.plans.filter((p) => p.brandId === editing.item.brandId)}
+          used={editing.kind === 'plan' ? planUses(editing.item.id, db.requests) : 0}
           currency={db.brands.find((b) => b.id === editing.item.brandId).currency}
           onClose={() => setEditing(null)}
           onSave={async (item) => {
@@ -113,7 +118,7 @@ export function Catalog() {
   );
 }
 
-function CatalogEditor({ editing, plans, currency, onClose, onSave }) {
+function CatalogEditor({ editing, plans, used, currency, onClose, onSave }) {
   const [item, setItem] = useState(editing.item);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -125,11 +130,21 @@ function CatalogEditor({ editing, plans, currency, onClose, onSave }) {
     if (!item.name.trim()) e.name = 'El nombre es obligatorio.';
     if (!(Number(item.price) > 0)) e.price = 'Indica un precio mayor que 0.';
     if (isPlan && !(Number(item.durationMin) > 0)) e.durationMin = 'Indica la duración en minutos.';
+    const limitErrors = isPlan ? validateLimit(item.limit) : {};
+    if (Object.keys(limitErrors).length) e.limit = limitErrors;
     setErrors(e);
     if (Object.keys(e).length) return;
     setBusy(true);
     const badge = item.badge && item.badge.text?.trim() ? { emoji: item.badge.emoji ?? '', text: item.badge.text.trim().slice(0, 30) } : item.badge === undefined ? undefined : null;
-    await onSave({ ...item, badge, name: item.name.trim(), price: Math.round(Number(item.price)), durationMin: isPlan ? Number(item.durationMin) : undefined, maxQty: Number(item.maxQty) || 1, addsMinutes: isPlan ? undefined : Math.max(0, Number(item.addsMinutes) || 0) });
+    const limit = isPlan && item.limit
+      ? {
+          ...item.limit,
+          maxBookings: item.limit.maxBookings === '' || item.limit.maxBookings == null ? null : Number(item.limit.maxBookings),
+          remainingText: String(item.limit.remainingText ?? '').trim(),
+          soldOutText: String(item.limit.soldOutText ?? '').trim(),
+        }
+      : item.limit;
+    await onSave({ ...item, badge, ...(isPlan ? { limit } : {}), name: item.name.trim(), price: Math.round(Number(item.price)), durationMin: isPlan ? Number(item.durationMin) : undefined, maxQty: Number(item.maxQty) || 1, addsMinutes: isPlan ? undefined : Math.max(0, Number(item.addsMinutes) || 0) });
   };
 
   return (
@@ -205,6 +220,7 @@ function CatalogEditor({ editing, plans, currency, onClose, onSave }) {
               ratio="4 / 5"
               testId="plan-image-slot"
             />
+            <PlanLimitEditor plan={item} used={used} today={toISODate(today())} errors={errors.limit} onChange={(limit) => set({ limit })} />
             <fieldset className="fieldset">
               <legend className="field__label">Tono del marcador (si no hay imagen)</legend>
               <div className="tone-pick">
@@ -239,5 +255,19 @@ function CatalogEditor({ editing, plans, currency, onClose, onSave }) {
         )}
       </div>
     </Modal>
+  );
+}
+
+/** Estado de un plan limitado en la lista: cupos usados, agotado, vencido… */
+function LimitChip({ plan, requests }) {
+  const used = planUses(plan.id, requests);
+  const av = planAvailability(plan, { today: toISODate(today()), used });
+  if (!av.limit) return null;
+  const parts = [av.limit.maxBookings ? `${used} de ${av.limit.maxBookings} cupos` : `${used} reservas`];
+  if (!av.open) parts.push(av.reason === 'soldout' ? 'Agotado' : av.reason === 'soon' ? availabilityText(av, formatShortDate) : 'Vencido');
+  return (
+    <span className={`limit-chip ${av.open ? '' : 'is-closed'}`} data-testid="limit-chip">
+      ⏳ Limitado · {parts.join(' · ')}
+    </span>
   );
 }
