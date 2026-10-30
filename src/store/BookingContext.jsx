@@ -4,7 +4,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
 
-const STORAGE_KEY = 'morel-booking-draft-v1';
+const STORAGE_KEY = 'elian-booking-draft-v1';
 
 export const emptyDraft = (brandId = null) => ({
   brandId,

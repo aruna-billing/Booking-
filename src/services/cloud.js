@@ -389,7 +389,7 @@ export async function startStaffSession(user) {
 function subscribeRealtime(user) {
   if (channel) supabase.removeChannel(channel);
   channel = supabase
-    .channel('morel-panel')
+    .channel('booking-panel')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_requests' }, (msg) => {
       if (msg.eventType === 'DELETE') {
         const id = msg.old?.id;

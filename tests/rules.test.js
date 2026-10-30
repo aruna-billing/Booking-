@@ -3,10 +3,14 @@ import assert from 'node:assert/strict';
 import { cleanRules, validateRules } from '../src/lib/rules.js';
 import { availabilityRules } from '../src/data/availabilityRules.js';
 
-const base = availabilityRules['morel-estudio'];
+const base = { mode: 'timed', workingDays: [1, 2, 3, 4, 5, 6], openTime: '08:00', closeTime: '21:00', startStepMin: 30, bufferMin: 15, breaks: [], defaultDurationMin: 30, maxBookingsPerDay: 12, minNoticeDays: 1, maxAdvanceDays: 90 };
 
 test('las reglas por defecto son válidas', () => {
   assert.deepEqual(validateRules(base), {});
+  assert.deepEqual(validateRules(availabilityRules['elian-lopez-photo']), {});
+});
+test('bodas: hace falta al menos una hora de inicio', () => {
+  assert.ok(validateRules({ ...availabilityRules['elian-lopez-photo'], startTimes: [] }).startTimes);
 });
 test('se puede trabajar hasta la noche y los domingos', () => {
   assert.deepEqual(validateRules({ ...base, workingDays: [0], openTime: '07:00', closeTime: '23:30' }), {});

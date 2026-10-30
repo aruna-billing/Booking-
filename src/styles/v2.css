@@ -2047,15 +2047,15 @@ ul.site-footer__links {
   font-weight: 700;
 }
 
-/* ───────── Seguimientos (Morel) ───────── */
+/* ───────── Acento del panel ───────── */
 .admin {
-  --accent: #d7262e; /* acento rojo de Morel Media Group en el panel */
+  --accent: #8a6d3f; /* dorado oscuro (legible con texto blanco) */
 }
 .admin__nav a.is-active {
-  background: rgba(215, 38, 46, 0.18);
+  background: rgba(168, 138, 92, 0.24);
 }
 .admin__count {
-  background: #d7262e;
+  background: #8a6d3f;
   color: #fff;
 }
 
@@ -2122,9 +2122,9 @@ ul.site-footer__links {
   color: #fff;
 }
 .ctl__step.is-current .ctl__dot {
-  border-color: #d7262e;
-  color: #d7262e;
-  box-shadow: 0 0 0 4px rgba(215, 38, 46, 0.12);
+  border-color: #8a6d3f;
+  color: #8a6d3f;
+  box-shadow: 0 0 0 4px rgba(168, 138, 92, 0.18);
 }
 .ctl__text {
   display: grid;

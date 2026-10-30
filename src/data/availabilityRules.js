@@ -1,24 +1,20 @@
-// Reglas de agenda (ejemplo). La disponibilidad que ve el cliente se genera a partir
-// de estas reglas + ocupación simulada; NO refleja la agenda real ni Google Calendar.
+// Reglas de agenda de partida (se cambian en el panel → Calendario).
+// Bodas: una por día; el cliente elige el día y la hora de inicio.
+// En la DEMO (sin Supabase) se añade una ocupación simulada; en el sitio real nunca.
 
 export const availabilityRules = {
-  'morel-estudio': {
-    mode: 'timed',
-    workingDays: [0, 1, 2, 3, 4, 5, 6], // todos los días, domingos incluidos (se cambia en Calendario)
-    openTime: '08:00',
-    closeTime: '21:00',
-    startStepMin: 30,
-    bufferMin: 15,
-    breaks: [], // sin pausa de almuerzo; se pueden añadir pausas en Calendario
-    defaultDurationMin: 30,
-    maxBookingsPerDay: 12,
-    minNoticeDays: 1,
-    maxAdvanceDays: 90,
-    simulatedAnchors: ['09:30', '11:00', '15:00', '16:30'],
+  'elian-lopez-photo': {
+    mode: 'exclusive_day',
+    workingDays: [0, 1, 2, 3, 4, 5, 6], // todos los días, domingos incluidos
+    startTimes: ['09:00', '10:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'],
+    defaultDurationMin: 480,
+    maxBookingsPerDay: 1,
+    minNoticeDays: 30,
+    maxAdvanceDays: 540,
     simulatedOccupancy: 0.3,
   },
 };
 
 export const blockedDateOffsets = {
-  'morel-estudio': [{ offset: 11, reason: 'Producción externa' }],
+  'elian-lopez-photo': [{ offset: 45, reason: 'Boda fuera del país' }],
 };

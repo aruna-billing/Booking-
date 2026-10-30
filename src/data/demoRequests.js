@@ -1,5 +1,5 @@
 // DATOS DE DEMOSTRACIÓN — solicitudes de reserva ficticias.
-// Personas, correos y teléfonos inventados (dominio .example y números 555).
+// Personas, correos y teléfonos inventados (dominio .example y números 555). Solo modo demo.
 // Las fechas se generan relativas a hoy para que el prototipo siempre se vea "vivo".
 
 import { plans, extras } from './catalog.js';
@@ -7,32 +7,26 @@ import { brands } from './brands.js';
 import { addDays, today, toISODate } from '../lib/date.js';
 import { computeQuote } from '../lib/pricing.js';
 
-const B = 'morel-estudio';
-// shot / delivered = días relativos a hoy en que se hicieron las fotos / se entregaron.
+const B = 'elian-lopez-photo';
+// shot / delivered = días relativos a hoy en que fue la boda / se entregó la galería.
 const seeds = [
   // Solicitudes por decidir
-  { id: 'req-1048', brandId: B, created: -0.2, status: 'pending_review', payment: 'submitted', first: 'Mariela', last: 'Ventura', planId: 'me-pro', extras: { 'me-x-foto': 2 }, day: 6, time: '10:00', notes: 'Fotos para mi perfil profesional y redes. Me gustaría un fondo claro.', insp: 2 },
-  { id: 'req-1047', brandId: B, created: -0.6, status: 'pending_review', payment: 'submitted', first: 'Andrés', last: 'Peralta', planId: 'me-estandar', extras: {}, day: 4, time: '15:00', notes: 'Retrato corporativo para la web de mi empresa.', insp: 1 },
-  { id: 'req-1046', brandId: B, created: -1.1, status: 'pending_review', payment: 'submitted', first: 'Luisa', last: 'Almonte', planId: 'me-pro', extras: { 'me-x-30min': 1 }, day: 8, time: '11:00', notes: 'Quiero dos cambios de ropa y un look formal.', insp: 3 },
-  { id: 'req-1045', brandId: B, created: -1.8, status: 'awaiting_payment', payment: 'rejected', first: 'Carolina', last: 'Reyes', planId: 'me-estandar', extras: {}, day: 12, time: '09:30', notes: '', insp: 0, rejection: 'El monto del comprobante no coincide con el anticipo requerido.' },
-  { id: 'req-1041', brandId: B, created: -3, status: 'awaiting_payment', payment: 'none', first: 'Ricardo', last: 'Méndez', planId: 'me-pro', extras: {}, day: 15, time: '16:00', notes: 'Fotos para casting.', insp: 0 },
-  // Reservado (antes de la sesión)
-  { id: 'req-1044', brandId: B, created: -4, status: 'confirmed', payment: 'verified', first: 'Gabriela', last: 'Núñez', planId: 'me-pro', extras: { 'me-x-impresa': 2 }, day: 2, time: '10:00', notes: 'Sesión de cumpleaños.', insp: 2 },
-  { id: 'req-1043', brandId: B, created: -5, status: 'confirmed', payment: 'verified', first: 'José', last: 'Tavárez', planId: 'me-estandar', extras: { 'me-x-expres': 1 }, day: 3, time: '14:00', notes: 'Necesito las fotos rápido para un evento.', insp: 1 },
-  { id: 'req-1042', brandId: B, created: -6, status: 'confirmed', payment: 'verified', first: 'Paola', last: 'Santos', planId: 'me-estandar', extras: {}, day: 0, time: '16:30', notes: '', insp: 0 },
-  { id: 'req-1049', brandId: B, created: -9, status: 'confirmed', payment: 'verified', first: 'Jorge', last: 'Liriano', planId: 'me-pro', extras: {}, day: -1, time: '11:00', notes: 'Retratos para LinkedIn.', insp: 0 },
-  // Fotos realizadas · en edición
-  { id: 'req-1040', brandId: B, created: -14, status: 'completed', payment: 'verified', first: 'Daniela', last: 'Cruz', planId: 'me-estandar', extras: { 'me-x-foto': 1 }, day: -3, time: '09:00', notes: '', insp: 1, shot: -3 },
-  { id: 'req-1031', brandId: B, created: -22, status: 'completed', payment: 'verified', balanceUnpaid: true, first: 'Tomás', last: 'Reynoso', planId: 'me-pro', extras: { 'me-x-foto': 2 }, day: -12, time: '10:00', notes: 'Pagará el saldo al recibir las fotos.', insp: 0, shot: -12 },
-  { id: 'req-1036', brandId: B, created: -28, status: 'completed', payment: 'verified', first: 'Manuel', last: 'Rosario', planId: 'me-pro', extras: {}, day: -19, time: '16:00', notes: '', insp: 0, shot: -19 },
+  { id: 'req-1048', brandId: B, created: -0.2, status: 'pending_review', payment: 'submitted', first: 'Mariela', last: 'Ventura', planId: 'el-clasica', extras: { 'el-x-segundo': 1, 'el-x-hora': 2 }, day: 96, time: '15:00', notes: 'Boda en una finca en Jarabacoa, unos 120 invitados. Nos gustan las fotos espontáneas.', insp: 3 },
+  { id: 'req-1047', brandId: B, created: -0.6, status: 'pending_review', payment: 'submitted', first: 'Andrés', last: 'Peralta', planId: 'el-intima', extras: { 'el-x-preboda': 1 }, day: 70, time: '10:00', notes: 'Boda civil con 20 personas.', insp: 1 },
+  { id: 'req-1046', brandId: B, created: -1.1, status: 'pending_review', payment: 'submitted', first: 'Luisa', last: 'Almonte', planId: 'el-editorial', extras: { 'el-x-hora': 1 }, day: 120, time: '16:00', notes: 'Boda en la playa al atardecer.', insp: 2 },
+  { id: 'req-1045', brandId: B, created: -1.8, status: 'awaiting_payment', payment: 'rejected', first: 'Carolina', last: 'Reyes', planId: 'el-editorial', extras: {}, day: 140, time: '16:00', notes: '', insp: 0, rejection: 'El monto del comprobante no coincide con el anticipo requerido.' },
+  // Reservado (antes de la boda)
+  { id: 'req-1044', brandId: B, created: -40, status: 'confirmed', payment: 'verified', first: 'Gabriela', last: 'Núñez', planId: 'el-editorial', extras: { 'el-x-padres': 2 }, day: 5, time: '10:00', notes: 'Boda íntima frente al mar en Samaná.', insp: 4 },
+  { id: 'req-1043', brandId: B, created: -60, status: 'confirmed', payment: 'verified', first: 'José', last: 'Tavárez', planId: 'el-clasica', extras: { 'el-x-expres': 1 }, day: 33, time: '15:00', notes: '', insp: 1 },
+  { id: 'req-1049', brandId: B, created: -90, status: 'confirmed', payment: 'verified', first: 'Jorge', last: 'Liriano', planId: 'el-clasica', extras: {}, day: -1, time: '16:00', notes: '', insp: 0 },
+  // Boda realizada · en edición
+  { id: 'req-1040', brandId: B, created: -120, status: 'completed', payment: 'verified', first: 'Daniela', last: 'Cruz', planId: 'el-intima', extras: {}, day: -9, time: '10:00', notes: '', insp: 1, shot: -9 },
+  { id: 'req-1036', brandId: B, created: -150, status: 'completed', payment: 'verified', first: 'Manuel', last: 'Rosario', planId: 'el-clasica', extras: { 'el-x-hora': 1 }, day: -50, time: '15:00', notes: '', insp: 0, shot: -50 },
   // Entregado
-  { id: 'req-1038', brandId: B, created: -40, status: 'completed', payment: 'verified', first: 'Natalia', last: 'Guzmán', planId: 'me-pro', extras: { 'me-x-30min': 1 }, day: -30, time: '10:00', notes: '', insp: 0, shot: -30, delivered: -20 },
-  { id: 'req-1037', brandId: B, created: -48, status: 'completed', payment: 'verified', first: 'Camila', last: 'Brito', planId: 'me-estandar', extras: { 'me-x-expres': 1 }, day: -35, time: '15:00', notes: '', insp: 0, shot: -35, delivered: -33 },
-  { id: 'req-1035', brandId: B, created: -75, status: 'completed', payment: 'verified', first: 'Laura', last: 'Batista', planId: 'me-pro', extras: {}, day: -66, time: '14:00', notes: '', insp: 0, shot: -66, delivered: -54 },
-  { id: 'req-1034', brandId: B, created: -95, status: 'completed', payment: 'verified', first: 'Pedro', last: 'Jiménez', planId: 'me-estandar', extras: {}, day: -88, time: '09:00', notes: '', insp: 0, shot: -88, delivered: -77 },
-  { id: 'req-1032', brandId: B, created: -125, status: 'completed', payment: 'verified', first: 'Irene', last: 'Castillo', planId: 'me-pro', extras: { 'me-x-impresa': 1 }, day: -118, time: '11:00', notes: '', insp: 0, shot: -118, delivered: -106 },
+  { id: 'req-1038', brandId: B, created: -200, status: 'completed', payment: 'verified', first: 'Natalia', last: 'Guzmán', planId: 'el-editorial', extras: {}, day: -60, time: '10:00', notes: '', insp: 0, shot: -60, delivered: -20 },
+  { id: 'req-1035', brandId: B, created: -240, status: 'completed', payment: 'verified', first: 'Laura', last: 'Batista', planId: 'el-clasica', extras: {}, day: -110, time: '16:00', notes: '', insp: 0, shot: -110, delivered: -70 },
   // Cancelada
-  { id: 'req-1039', brandId: B, created: -16, status: 'cancelled', payment: 'none', first: 'Héctor', last: 'Polanco', planId: 'me-estandar', extras: {}, day: 9, time: '09:00', notes: 'Canceló por viaje.', insp: 0 },
+  { id: 'req-1039', brandId: B, created: -16, status: 'cancelled', payment: 'none', first: 'Héctor', last: 'Polanco', planId: 'el-intima', extras: {}, day: 80, time: '10:00', notes: 'Cambiaron de fecha.', insp: 0 },
 ];
 
 const fakeFile = (prefix, i, type = 'image/jpeg') => ({

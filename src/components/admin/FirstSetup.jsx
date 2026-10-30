@@ -5,8 +5,21 @@ import { saveConfig } from '../../services/cloud.js';
 import { getCloudStatus, setCloudStatus } from '../../store/cloudStatus.js';
 import { Link } from '../../lib/router.jsx';
 
-/** Primera vez con un Supabase vacío: crea la configuración inicial de Morel Estudio. */
+/** Primera vez con un Supabase vacío: crea la configuración inicial (marca, planes, horario…). */
+const DAY = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const hhmm = (t) => {
+  const [h, m] = t.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'a. m.' : 'p. m.'}`;
+};
+function rulesText(r) {
+  if (!r) return 'Horario de trabajo editable.';
+  const days = r.workingDays.length === 7 ? 'Todos los días, domingos incluidos' : `Días: ${r.workingDays.map((d) => DAY[d]).join(', ')}`;
+  if (r.mode === 'exclusive_day') return `${days}; ${r.maxBookingsPerDay === 1 ? 'un evento por día' : `hasta ${r.maxBookingsPerDay} eventos por día`}, con hora de inicio a elegir (${r.startTimes.map(hhmm).join(', ')}).`;
+  return `${days}, de ${hhmm(r.openTime)} a ${hhmm(r.closeTime)}${r.breaks?.length ? ', con pausas' : ', sin pausa'}.`;
+}
+
 export function FirstSetup({ canSetup }) {
+  const preview = buildFirstSetup();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(() => getCloudStatus().justSetUp === true);
@@ -58,11 +71,13 @@ export function FirstSetup({ canSetup }) {
   return (
     <div className="card setup-card" data-testid="first-setup">
       <h1 className="page-head__title">Configuración inicial</h1>
-      <p>La base de datos está vacía. Se creará la configuración de partida de <strong>Morel Estudio</strong>:</p>
+      <p>La base de datos está vacía. Se creará la configuración de partida de <strong>{preview.brands.map((x) => x.name).join(' y ')}</strong>:</p>
       <ul>
         <li>La marca, sus colores y textos.</li>
-        <li>Los planes Estándar y Pro, y extras de ejemplo (puedes cambiarlos o borrarlos).</li>
-        <li>Horario todos los días, domingos incluidos, de 8:00 a. m. a 9:00 p. m., sin pausa (se cambia en Calendario).</li>
+        <li>
+          Planes: {preview.plans.map((x) => x.name).join(', ')}; y {preview.extras.length} extras de ejemplo (puedes cambiarlos o borrarlos).
+        </li>
+        <li>{rulesText(Object.values(preview.rules)[0])} Se cambia en Calendario.</li>
         <li>Términos de ejemplo, que debes reemplazar por los oficiales.</li>
       </ul>
       <p className="muted small">No se crean cuentas bancarias ni solicitudes: las cuentas las añades tú después.</p>

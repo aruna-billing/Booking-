@@ -20,7 +20,7 @@ export function Tracking() {
   const toast = useToast();
   const [view, setView] = useState(() => {
     try {
-      return sessionStorage.getItem('morel-tracking-view') || 'board';
+      return sessionStorage.getItem('booking-tracking-view') || 'board';
     } catch {
       return 'board';
     }
@@ -78,7 +78,7 @@ export function Tracking() {
   const setViewSaved = (v) => {
     setView(v);
     try {
-      sessionStorage.setItem('morel-tracking-view', v);
+      sessionStorage.setItem('booking-tracking-view', v);
     } catch {
       /* ignorar */
     }

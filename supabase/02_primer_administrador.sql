@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- MOREL BOOKING · Primer administrador
+-- BOOKING (Elian López Photo) · Primer administrador
 -- ────────────────────────────────────────────────────────────────────────────
 -- 1. Supabase → Authentication → Users → «Add user» → «Create new user».
 --    Escribe tu correo y una contraseña segura y marca «Auto Confirm User».

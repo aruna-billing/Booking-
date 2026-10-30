@@ -44,7 +44,7 @@ export function AdminLayout({ title, perm, children }) {
   const path = usePath();
   const [brandFilter, setBrandFilter] = useState(() => {
     try {
-      return sessionStorage.getItem('morel-admin-brand') || 'all';
+      return sessionStorage.getItem('booking-admin-brand') || 'all';
     } catch {
       return 'all';
     }
@@ -58,7 +58,7 @@ export function AdminLayout({ title, perm, children }) {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('morel-admin-brand', brandFilter);
+      sessionStorage.setItem('booking-admin-brand', brandFilter);
     } catch {
       /* ignorar */
     }
@@ -78,7 +78,7 @@ export function AdminLayout({ title, perm, children }) {
     if (!allowed && path === '/admin' && userCan('requests.view')) navigate('/admin/solicitudes', { replace: true });
   }, [allowed, path, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    document.title = `${title} · ${db.organization.name} Booking${LIVE ? '' : ' (demo)'}`;
+    document.title = `${title} · ${db.organization.name}${LIVE ? '' : ' (demo)'}`;
   }, [title, db.organization.name]);
 
   const inScope = (brandId) => canSeeBrand(user, brandId) && (brandFilter === 'all' || brandId === brandFilter);

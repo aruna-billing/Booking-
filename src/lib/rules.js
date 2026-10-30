@@ -21,7 +21,7 @@ export function validateRules(r) {
   }
   if (!(Number(r.maxBookingsPerDay) >= 1 && Number(r.maxBookingsPerDay) <= 50)) e.maxBookingsPerDay = 'Entre 1 y 50.';
   if (!(Number(r.minNoticeDays) >= 0 && Number(r.minNoticeDays) <= 60)) e.minNoticeDays = 'Entre 0 y 60 días.';
-  if (!(Number(r.maxAdvanceDays) >= 7 && Number(r.maxAdvanceDays) <= 365)) e.maxAdvanceDays = 'Entre 7 y 365 días.';
+  if (!(Number(r.maxAdvanceDays) >= 7 && Number(r.maxAdvanceDays) <= 730)) e.maxAdvanceDays = 'Entre 7 y 730 días (2 años).';
   else if (Number(r.maxAdvanceDays) <= Number(r.minNoticeDays)) e.maxAdvanceDays = 'Debe ser mayor que la antelación mínima.';
   return e;
 }

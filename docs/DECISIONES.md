@@ -1,4 +1,4 @@
-# Morel Media Group · Booking
+# Elian López Photo · Booking
 
 Esta copia parte del prototipo de reservas (versión 2) y añade **Seguimientos**. Las decisiones generales siguen abajo; la sección nueva está al final.
 
@@ -239,26 +239,10 @@ Está en Personalización, en la pestaña de cada marca, sección «4 · Secció
 - **Doble protección:** además de ocultar botones y secciones, la capa de servicios comprueba el permiso y la marca en cada acción, igual que lo hará el servidor. Si alguien intenta una acción sin permiso, se rechaza con un mensaje claro.
 - **Historial:** registra el nombre de quien hace cada cambio (p. ej. «María Peña: Sesión aceptada…»).
 
-## Morel Media Group: marca y datos
+## Elian López Photo: marca y datos
 
-- **Marca matriz:** Morel Media Group. **Marca publicada:** Morel Estudio.
-- **Planes:** Plan Estándar y Plan Pro, con fotos, duración, precio y condición de vestuario según su página pública.
-- **Robert Morel Photo** no se incluyó porque no hay información pública de sus servicios. Se añade desde «Marcas → Añadir marca».
-- **Identidad:** franjas negras, fondo blanco, titulares en mayúsculas, nombres de plan en serif clásica (Libre Baskerville) y acento rojo, como en la página de referencia. No se copiaron logotipos, fotos ni textos.
-
-## Seguimientos
-
-- **Por qué dos vistas:**
-  - La línea de tiempo vive en el detalle de la solicitud, donde ya se trabaja con cada cliente.
-  - El tablero «Seguimientos» da la vista de conjunto tipo CRM.
-  - Solicitudes sigue siendo la bandeja de entrada de lo que hay que aceptar o rechazar.
-- **Etapas derivadas de datos:**
-  - `confirmedAt`: fecha en que se confirmó la reserva.
-  - `shotAt`: día de las fotos; pone el estado en «Sesión realizada».
-  - `deliveredAt` y `galleryUrl`: entrega y enlace de la galería.
-  - La etapa nunca se guarda como texto aparte, así que no puede quedar desincronizada.
-- **«Fotos realizadas» solo desde el día de la sesión.** Las sesiones pasadas sin marcar se señalan en ámbar («¿Se realizó?»), porque son las que se olvidan.
-- **Plazo de entrega en días hábiles** (lunes a viernes) desde el día de las fotos, configurable por marca. El extra con «Entrega exprés» usa 72 horas. Las entregas fuera de plazo quedan marcadas «con retraso» para poder medir el cumplimiento.
-- **Tarjetas:** un borde de color indica urgencia (rojo vencida, ámbar próxima o sin marcar, verde hoy o entregada). El texto siempre acompaña al color.
-- **En celular** el tablero se convierte en pestañas por etapa, para no tener que desplazarse de lado.
-- **Asistente:** puede marcar etapas porque es trabajo operativo diario. Deshacer un paso es solo del administrador.
+- **Marca matriz:** Aruna One. **Marca publicada:** Elian López Photo (bodas).
+- **Modo de agenda:** día completo (`exclusive_day`): una boda por día y el cliente elige la hora de inicio. Se cambia en Calendario.
+- **Moneda:** USD; anticipo del 30 %; plazo de entrega de 30 días hábiles (se cambia en Marcas).
+- **Planes y extras** de partida: Ceremonia Íntima, Boda Clásica y Boda Editorial Completa, con extras (hora adicional, segundo fotógrafo, preboda, libros, entrega exprés). Se revisan en el panel antes de publicar.
+- **Con una sola marca publicada**, la portada lleva directo a sus planes y el nombre de la pestaña sale del nombre de la marca.

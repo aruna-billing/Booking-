@@ -1,6 +1,6 @@
-# Morel Media Group · Booking
+# Elian López Photo · Booking
 
-Sistema de reservas y seguimiento de clientes para **Morel Estudio** (marca de **Morel Media Group**), conectado a **Supabase**.
+Sistema de reservas de bodas y seguimiento de clientes para **Elian López Photo** (marca matriz: **Aruna One**), conectado a **Supabase**.
 
 - **Con Supabase** (archivo `.env` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`): sitio real. Las reservas, la configuración, los comprobantes y las imágenes se guardan en Supabase, y el panel pide inicio de sesión.
 - **Sin esas variables**: funciona como demo con datos de ejemplo guardados en el navegador. Sirve para probar cambios sin tocar la base de datos.
@@ -46,8 +46,8 @@ npm run build      # sitio estático en dist/
 
 | Ruta | Pantalla |
 | --- | --- |
-| `#/` | Portada (Morel Media Group) |
-| `#/reservar/morel-estudio` | Reserva en 6 pasos |
+| `#/` | Portada (con una sola marca publicada, lleva directo a sus planes) |
+| `#/reservar/elian-lopez-photo` | Reserva en 6 pasos |
 | `#/admin` | Dashboard |
 | `#/admin/seguimientos` | **Seguimientos** |
 | `#/admin/solicitudes` · `/:id` | Solicitudes y detalle con línea de tiempo |

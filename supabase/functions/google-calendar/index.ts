@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════════
-// MOREL BOOKING · Función «google-calendar» (Supabase Edge Function)
+// BOOKING (Elian López Photo) · Función «google-calendar» (Supabase Edge Function)
 // ────────────────────────────────────────────────────────────────────────────
 // Conecta las reservas con Google Calendar usando una cuenta de servicio de Google
 // con la que se compartió el calendario. No usa dependencias externas.
@@ -183,7 +183,7 @@ export function toDayBlocks(intervals: { start: string; end: string }[]) {
 // ───────────────────────── Eventos de reservas ─────────────────────────
 
 /** Id fijo del evento para cada solicitud (Google solo admite a–v y 0–9). */
-export const eventIdFor = (requestId: string) => `morel${requestId.toLowerCase().replace(/[^a-v0-9]/g, '')}`;
+export const eventIdFor = (requestId: string) => `booking${requestId.toLowerCase().replace(/[^a-v0-9]/g, '')}`;
 
 const KEEP = ['confirmed', 'completed'];
 
@@ -209,7 +209,7 @@ export function eventFor(r: Record<string, any>, siteUrl = '') {
     start: { dateTime: local(start), timeZone: TZ },
     end: { dateTime: local(end), timeZone: TZ },
     status: 'confirmed',
-    extendedProperties: { private: { morelRequestId: r.id } },
+    extendedProperties: { private: { bookingRequestId: r.id } },
   };
 }
 
@@ -262,7 +262,7 @@ export async function busyBlocks(calendarId: string, from: string, to: string) {
   const intervals = items
     // Las reservas ya cuentan como ocupadas desde la base de datos; los eventos
     // marcados como «Disponible» en Google no bloquean.
-    .filter((e: any) => e.status !== 'cancelled' && e.transparency !== 'transparent' && !e.extendedProperties?.private?.morelRequestId)
+    .filter((e: any) => e.status !== 'cancelled' && e.transparency !== 'transparent' && !e.extendedProperties?.private?.bookingRequestId)
     .map((e: any) => ({
       start: e.start?.dateTime ?? localToUtc(e.start?.date).toISOString(),
       end: e.end?.dateTime ?? localToUtc(e.end?.date).toISOString(),

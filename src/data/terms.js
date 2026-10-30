@@ -1,16 +1,17 @@
-// Términos de EJEMPLO. Reemplazar por los términos oficiales de Morel Estudio
-// desde «Términos» en el panel antes de usar con clientes reales.
+// Términos de PARTIDA. Reemplazar por los términos oficiales desde el panel → Términos
+// antes de recibir clientes reales.
 
 export const terms = {
-  'morel-estudio': {
+  'elian-lopez-photo': {
     version: '0.1-demo',
     updatedAt: '2026-10-01',
     sections: [
-      { title: 'Reserva y anticipo', body: 'La cita se considera reservada cuando el equipo confirma el anticipo. Hasta entonces la solicitud permanece en revisión. El saldo restante se paga el día de la sesión.' },
-      { title: 'Vestuario', body: 'En el Plan Estándar el cliente debe llegar listo con su vestuario; no incluye vestidor.' },
-      { title: 'Puntualidad', body: 'La sesión comienza a la hora reservada. Los retrasos se descuentan del tiempo de la sesión.' },
-      { title: 'Entrega', body: 'Las fotos se entregan en un plazo de 10 días laborables desde la sesión, salvo que se contrate entrega exprés (72 horas).' },
-      { title: 'Uso de imágenes', body: 'El estudio puede usar una selección de imágenes en su portafolio. Si prefieres que no se publiquen, indícalo en tus notas.' },
+      { title: 'Reserva de fecha', body: 'La fecha de la boda queda reservada cuando se confirma el anticipo. Elian López Photo acepta un número limitado de bodas por temporada.' },
+      { title: 'Pagos', body: 'El saldo restante se paga completo el día del evento.' },
+      { title: 'Cobertura y horarios', body: 'Las horas de cobertura son continuas. El tiempo adicional el día del evento se cobra según la tarifa vigente de hora extra.' },
+      { title: 'Viajes', body: 'Los eventos fuera de la ciudad pueden requerir viáticos, que se cotizan por separado.' },
+      { title: 'Entrega', body: 'La galería se entrega en un plazo de 30 días laborables desde la boda, salvo que se contrate entrega exprés (72 horas).' },
+      { title: 'Derechos de autor', body: 'Las imágenes son obra del fotógrafo. La pareja recibe licencia de uso personal. El uso comercial requiere autorización escrita.' },
     ],
   },
 };

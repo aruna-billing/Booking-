@@ -1,42 +1,41 @@
-// DATOS DE LA MARCA — Morel Estudio (Morel Media Group).
-// Planes tomados de la página pública de Morel Estudio. Contacto y textos de apoyo
-// son de ejemplo y se editan desde el panel (Marcas y Personalización).
+// DATOS DE LA MARCA — Elian López Photo (bodas).
+// Textos, contacto y colores son de partida: se editan desde el panel (Marcas y Personalización).
 
 export const brands = [
   {
-    id: 'morel-estudio',
-    name: 'Morel Estudio',
-    shortName: 'Morel Estudio',
-    tagline: 'Retrato de estudio, fresco y delicado.',
-    description: 'Fotografía de estudio, de imagen personal y corporativa.',
-    currency: 'DOP',
+    id: 'elian-lopez-photo',
+    name: 'Elian López Photo',
+    shortName: 'Elian López',
+    tagline: 'Bodas contadas como una obra.',
+    description: 'Fotografía de bodas con mirada editorial y artística. Cobertura a medida para celebraciones con intención.',
+    currency: 'USD',
     locale: 'es-DO',
-    depositPercent: 50, // ejemplo: ajustar en Marcas
-    bookingType: 'session',
-    deliveryDays: 10, // días hábiles desde la sesión hasta la entrega (ejemplo)
+    depositPercent: 30,
+    bookingType: 'event', // una boda por día; se reserva el día completo
+    deliveryDays: 30, // días hábiles desde la boda hasta la entrega (se cambia en Marcas)
     published: true,
-    whatsappDisplay: '+1 (809) 555-0123 · número ficticio',
-    email: 'reservas@morelestudio.example',
+    whatsappDisplay: '',
+    email: '',
     theme: {
-      bg: '#FFFFFF',
+      bg: '#FAF8F4',
       surface: '#FFFFFF',
-      ink: '#111111',
-      muted: '#5C5852',
-      accent: '#D7262E',
-      accentInk: '#FFFFFF',
-      line: '#DAD7D2',
-      hero: '#1C1C1C',
-      heroInk: '#FFFFFF',
-      fontDisplay: "'Libre Baskerville', Georgia, serif",
-      displayStyle: 'normal',
+      ink: '#0F0F0E',
+      muted: '#5A5650',
+      accent: '#A88A5C',
+      accentInk: '#0F0F0E',
+      line: '#D8D2C6',
+      hero: '#111110',
+      heroInk: '#F3EFE7',
+      fontDisplay: "'Cormorant Garamond', 'Times New Roman', serif",
+      displayStyle: 'italic',
     },
-    heroTone: 'ink',
+    heroTone: 'noir',
     studio: {
-      headline: 'Reserva tu cita',
-      intro: 'Fotografía de estudio, de imagen personal y corporativa, con un estilo de retrato fresco y delicado.',
-      cta: 'Reserva una cita',
-      gallery: ['Retrato', 'Corporativo', 'Imagen personal', 'Retrato', 'Estudio'],
-      instagram: '@morel.estudio',
+      headline: 'Reserva tu fecha',
+      intro: 'Elian López Photo documenta bodas con una mirada editorial: preparativos, ceremonia y celebración contados como una sola historia, con pocas fechas por temporada.',
+      cta: 'Consulta tu fecha',
+      gallery: ['Ceremonia', 'Pareja', 'Detalles', 'Celebración', 'Retrato'],
+      instagram: '',
     },
   },
 ];

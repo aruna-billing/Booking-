@@ -10,7 +10,7 @@ import { ROLES } from '../data/roles.js';
 import { getState, useDb } from '../store/mockDb.js';
 import { LIVE } from './mode.js';
 
-const KEY = 'morel-admin-user';
+const KEY = 'booking-admin-user';
 const listeners = new Set();
 const emit = () => listeners.forEach((l) => l());
 const subscribe = (l) => {

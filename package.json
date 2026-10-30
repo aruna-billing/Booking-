@@ -1,8 +1,8 @@
 {
-  "name": "morel-booking",
+  "name": "elian-booking",
   "version": "1.0.0",
   "private": true,
-  "description": "Morel Media Group Booking — reservas de Morel Estudio con Supabase (o demo local sin Supabase).",
+  "description": "Elian López Photo · reservas de bodas con Supabase (o demo local sin Supabase).",
   "type": "module",
   "scripts": {
     "dev": "vite",

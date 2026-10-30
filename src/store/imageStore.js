@@ -14,7 +14,7 @@ import { LIVE } from '../lib/mode.js';
 import { supabase } from '../lib/supabase.js';
 import { dataUrlToBlob, extFor, friendlyError } from '../services/cloud.js';
 
-const DB_NAME = 'morel-booking-media';
+const DB_NAME = 'elian-booking-media';
 const STORE = 'images';
 
 let images = new Map();

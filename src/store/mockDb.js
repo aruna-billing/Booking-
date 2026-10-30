@@ -17,7 +17,7 @@ import { demoCoupons } from '../data/coupons.js';
 import { addDays, toISODate, today } from '../lib/date.js';
 import { LIVE } from '../lib/mode.js';
 
-const STORAGE_KEY = 'morel-booking-demo-v1';
+const STORAGE_KEY = 'elian-booking-demo-v1';
 
 function buildInitialState() {
   const blockedDates = Object.entries(blockedDateOffsets).flatMap(([brandId, list]) =>
@@ -60,7 +60,7 @@ function buildLiveState() {
 
 /**
  * Configuración inicial para un Supabase vacío: marca, planes, extras, términos y horario
- * de Morel Estudio. Sin solicitudes, sin cuentas bancarias y sin datos ficticios.
+ * de la marca. Sin solicitudes, sin cuentas bancarias y sin datos ficticios.
  */
 export function buildFirstSetup() {
   const clean = (b) => ({

@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- MOREL BOOKING · Instalación de la base de datos en Supabase
+-- BOOKING (Elian López Photo) · Instalación de la base de datos en Supabase
 -- ────────────────────────────────────────────────────────────────────────────
 -- Cómo usarlo: Supabase → SQL Editor → New query → pega TODO este archivo → Run.
 -- Se puede volver a ejecutar sin perder datos (usa «if not exists» y reemplaza
@@ -559,34 +559,34 @@ values ('receipts', 'receipts', false, 10485760,
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit,
                                allowed_mime_types = excluded.allowed_mime_types;
 
-drop policy if exists "morel media lectura" on storage.objects;
-create policy "morel media lectura" on storage.objects
+drop policy if exists "booking media lectura" on storage.objects;
+create policy "booking media lectura" on storage.objects
   for select to anon, authenticated using (bucket_id = 'media');
 
-drop policy if exists "morel media subir" on storage.objects;
-create policy "morel media subir" on storage.objects
+drop policy if exists "booking media subir" on storage.objects;
+create policy "booking media subir" on storage.objects
   for insert to authenticated with check (bucket_id = 'media' and public.is_admin());
 
-drop policy if exists "morel media editar" on storage.objects;
-create policy "morel media editar" on storage.objects
+drop policy if exists "booking media editar" on storage.objects;
+create policy "booking media editar" on storage.objects
   for update to authenticated using (bucket_id = 'media' and public.is_admin());
 
-drop policy if exists "morel media borrar" on storage.objects;
-create policy "morel media borrar" on storage.objects
+drop policy if exists "booking media borrar" on storage.objects;
+create policy "booking media borrar" on storage.objects
   for delete to authenticated using (bucket_id = 'media' and public.is_admin());
 
 -- Cualquiera puede SUBIR un comprobante a incoming/ (no puede verlo, cambiarlo ni borrarlo).
-drop policy if exists "morel comprobantes subir" on storage.objects;
-create policy "morel comprobantes subir" on storage.objects
+drop policy if exists "booking comprobantes subir" on storage.objects;
+create policy "booking comprobantes subir" on storage.objects
   for insert to anon, authenticated
   with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = 'incoming');
 
-drop policy if exists "morel comprobantes ver equipo" on storage.objects;
-create policy "morel comprobantes ver equipo" on storage.objects
+drop policy if exists "booking comprobantes ver equipo" on storage.objects;
+create policy "booking comprobantes ver equipo" on storage.objects
   for select to authenticated using (bucket_id = 'receipts' and public.is_staff());
 
-drop policy if exists "morel comprobantes borrar admin" on storage.objects;
-create policy "morel comprobantes borrar admin" on storage.objects
+drop policy if exists "booking comprobantes borrar admin" on storage.objects;
+create policy "booking comprobantes borrar admin" on storage.objects
   for delete to authenticated using (bucket_id = 'receipts' and public.is_admin());
 
 -- ─────────────────────────── 6. Permisos ───────────────────────────

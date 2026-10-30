@@ -1,5 +1,6 @@
 import { useDb } from '../../store/mockDb.js';
-import { Link } from '../../lib/router.jsx';
+import { useEffect } from 'react';
+import { Link, navigate } from '../../lib/router.jsx';
 import { BrandMark, OrgMark, brandStyle } from '../../components/ui/BrandMark.jsx';
 import { SiteImage } from '../../components/ui/SiteImage.jsx';
 import { getOrgWeb, getWeb } from '../../lib/webConfig.js';
@@ -17,6 +18,12 @@ export function BrandSelect() {
   const { brands, organization: org } = useDb();
   const visible = brands.filter((b) => b.published !== false);
   const ow = getOrgWeb(org);
+  // Con una sola marca publicada, la portada lleva directo a sus planes.
+  const only = visible.length === 1 ? visible[0].id : null;
+  useEffect(() => {
+    if (only) navigate(`/reservar/${only}`, { replace: true });
+  }, [only]);
+  if (only) return null;
   return (
     <div className="landing">
       <header className="landing__header">

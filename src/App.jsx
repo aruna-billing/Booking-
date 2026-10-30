@@ -1,4 +1,5 @@
 import { Component, useEffect } from 'react';
+import { publicTitle } from './lib/pageTitle.js';
 import { matchPath, usePath, Link, navigate } from './lib/router.jsx';
 import { useDb } from './store/mockDb.js';
 import { BookingProvider } from './store/BookingContext.jsx';
@@ -47,6 +48,12 @@ const ADMIN_ROUTES = [
 
 function Router() {
   const path = usePath().split('?')[0];
+  const db = useDb();
+  // Pestaña del navegador (el panel pone la suya en AdminLayout).
+  useEffect(() => {
+    if (path === '/admin' || (path.startsWith('/admin/') && path !== '/admin/login')) return;
+    document.title = publicTitle(path, db);
+  }, [path, db.organization, db.brands]); // eslint-disable-line react-hooks/exhaustive-deps
   const auth = useAuthState();
   const cloud = useCloudStatus();
   const isAdmin = path === '/admin' || path.startsWith('/admin/');
@@ -132,7 +139,7 @@ class ErrorBoundary extends Component {
   }
   restart = () => {
     try {
-      sessionStorage.removeItem('morel-booking-draft-v1');
+      sessionStorage.removeItem('elian-booking-draft-v1');
     } catch {
       /* ignorar */
     }

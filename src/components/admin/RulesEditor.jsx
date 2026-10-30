@@ -108,7 +108,7 @@ export function RulesEditor({ brand, rules }) {
             <input type="number" min={0} max={60} value={r.minNoticeDays} onChange={(e) => set({ minNoticeDays: e.target.value })} />
           </Field>
           <Field label="Reservable hasta (días)" required error={err('maxAdvanceDays')}>
-            <input type="number" min={7} max={365} value={r.maxAdvanceDays} onChange={(e) => set({ maxAdvanceDays: e.target.value })} />
+            <input type="number" min={7} max={730} value={r.maxAdvanceDays} onChange={(e) => set({ maxAdvanceDays: e.target.value })} />
           </Field>
         </div>
 

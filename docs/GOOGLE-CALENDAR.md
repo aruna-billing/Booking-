@@ -13,10 +13,10 @@ Se conecta con una **cuenta de servicio** de Google, una especie de «usuario ro
 ## 1. Crear la cuenta de servicio en Google Cloud
 
 1. Entra a [console.cloud.google.com](https://console.cloud.google.com) con tu cuenta de Google.
-2. Arriba, en el selector de proyectos, elige **Nuevo proyecto**. Nombre: `morel-booking` → **Crear**. Asegúrate de que quede seleccionado.
+2. Arriba, en el selector de proyectos, elige **Nuevo proyecto**. Nombre: `elian-booking` → **Crear**. Asegúrate de que quede seleccionado.
 3. Menú ☰ → **APIs y servicios → Biblioteca** → busca **Google Calendar API** → **Habilitar**.
 4. Menú ☰ → **IAM y administración → Cuentas de servicio** → **Crear cuenta de servicio**.
-   - Nombre: `morel-calendar` → **Crear y continuar**.
+   - Nombre: `booking-calendar` → **Crear y continuar**.
    - Los pasos de roles y accesos déjalos vacíos → **Listo**.
 5. Abre la cuenta que se creó → pestaña **Claves** → **Agregar clave → Crear clave nueva → JSON → Crear**.
    Se descarga un archivo `.json`. **Guárdalo en un lugar seguro y no lo subas a GitHub:** es la llave de acceso a tu calendario.
@@ -36,7 +36,7 @@ Se conecta con una **cuenta de servicio** de Google, una especie de «usuario ro
 
 ## 3. Subir la función a Supabase
 
-1. Supabase → tu proyecto de Morel → **Edge Functions** → **Deploy a new function** → **Via Editor**.
+1. Supabase → tu proyecto → **Edge Functions** → **Deploy a new function** → **Via Editor**.
 2. Nombre de la función: **`google-calendar`**, exactamente así.
 3. Borra el código de ejemplo y pega **todo** el contenido de `supabase/functions/google-calendar/index.ts` → **Deploy function**.
 4. Abre la función → **Details** (o *Settings*) → desactiva **Enforce JWT verification** (o *Verify JWT*) → **Save**.
@@ -50,7 +50,7 @@ Supabase → **Edge Functions → Secrets** (o *Project Settings → Edge Functi
 |---|---|
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Abre el archivo `.json` del paso 1 con un editor de texto y pega **todo** su contenido, desde `{` hasta `}`. |
 | `GOOGLE_CALENDAR_ID` | El ID de calendario del paso 2 (tu Gmail). |
-| `SITE_URL` | La dirección de tu sitio, por ejemplo `https://morel-booking.pages.dev`. Sirve para el enlace al panel dentro de cada evento. |
+| `SITE_URL` | La dirección de tu sitio, por ejemplo `https://elian-booking.pages.dev`. Sirve para el enlace al panel dentro de cada evento. |
 
 Pulsa **Save**.
 

@@ -1,6 +1,6 @@
-# Poner en marcha Morel Booking con Supabase
+# Poner en marcha el sistema de reservas con Supabase
 
-Tiempo aproximado: 20 minutos. Proyecto de Supabase: `kbjlbdgxumbfnqqbqhvd`.
+Tiempo aproximado: 20 minutos. Necesitas un proyecto de Supabase propio (supabase.com → New project).
 
 ## 1. Crear la base de datos (una sola vez)
 
@@ -25,11 +25,11 @@ El proyecto es un sitio estático (Vite). Sirve cualquier hosting: Cloudflare Pa
 | Carpeta de salida | `dist` |
 | Versión de Node | 20 o superior |
 
-**Variables de entorno.** El archivo `.env` ya trae los datos de tu proyecto, y el build los usa si lo subes junto con el código. Si tu hosting no lo recibe, añádelas en su panel (en Cloudflare Pages: *Settings → Environment variables*) y vuelve a publicar:
+**Variables de entorno.** El archivo `.env` debe llevar los datos de tu proyecto (Project Settings → API), y el build los usa si lo subes junto con el código. Si tu hosting no lo recibe, añádelas en su panel (en Cloudflare Pages: *Settings → Environment variables*) y vuelve a publicar:
 
 ```
-VITE_SUPABASE_URL=https://kbjlbdgxumbfnqqbqhvd.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_0bhSMekq1C22HGHouy5Fzg_u0BHXcCR
+VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…
 ```
 
 La clave *publishable* es pública por diseño: va dentro de la web y cualquiera puede verla. Lo que protege los datos son las reglas (RLS) del paso 1. **Nunca** pongas en el proyecto la clave *secret* ni la *service_role*.
@@ -38,7 +38,7 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
 
 1. Abre tu sitio y entra a **Acceso del equipo** (pie de página) o a `tu-sitio/#/admin`.
 2. Inicia sesión con el usuario del paso 2.
-3. Verás **Configuración inicial**. Pulsa **Crear configuración inicial**: crea la marca Morel Estudio, sus planes, extras de ejemplo, el horario y los términos.
+3. Verás **Configuración inicial**. Pulsa **Crear configuración inicial**: crea la marca Elian López Photo, sus planes, extras de ejemplo, el horario y los términos.
 4. Antes de recibir reservas:
    - **Cuentas bancarias**: añade las cuentas reales. Sin al menos una cuenta activa, el cliente no ve dónde pagar.
    - **Marcas**: WhatsApp, correo, anticipo, plazo de entrega y logos.
