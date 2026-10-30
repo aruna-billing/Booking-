@@ -1,3 +1,5 @@
+import { BadgeChip as Badge } from '../../components/ui/BadgeChip.jsx';
+import { badgeOf } from '../../lib/badges.js';
 import { BookingShell } from '../../components/booking/BookingShell.jsx';
 import { stepPath } from '../../components/booking/Stepper.jsx';
 import { HeroMedia } from '../../components/booking/HeroMedia.jsx';
@@ -68,15 +70,16 @@ export function StepPlans({ data }) {
         <ul className={`hplans ${web.planImages.show ? '' : 'hplans--text'}`}>
           {plans.map((p, i) => {
             const selected = draft.planId === p.id;
+            const badge = badgeOf(p);
             return (
               <li key={p.id} className={`hplan ${selected ? 'is-selected' : ''}`}>
                 {web.planImages.show ? (
                   <div className="hplan__media">
                     <PlanImage plan={p} ratio="4 / 5" variant={i} />
-                    {p.featured && <span className="plan__flag">Más elegido</span>}
+                    {badge && <Badge badge={badge} className="plan__flag" />}
                   </div>
                 ) : (
-                  p.featured && <span className="plan__flag plan__flag--inline">Más elegido</span>
+                  badge && <Badge badge={badge} className="plan__flag plan__flag--inline" />
                 )}
                 <div className="hplan__body">
                   <h3 className="hplan__name">{p.name}</h3>

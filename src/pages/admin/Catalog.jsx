@@ -1,3 +1,6 @@
+import { BadgePicker } from '../../components/admin/BadgePicker.jsx';
+import { BadgeChip } from '../../components/ui/BadgeChip.jsx';
+import { badgeOf } from '../../lib/badges.js';
 import { useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
@@ -58,7 +61,7 @@ export function Catalog() {
                   <li key={p.id} className={`cat-item ${p.active ? '' : 'is-inactive'}`}>
                     <PlanImage plan={p} ratio="1 / 1" variant={i} label="Muestra" className="cat-item__img" />
                     <div className="cat-item__info">
-                      <strong>{p.name}</strong>
+                      <strong>{p.name}{badgeOf(p) && <> <BadgeChip badge={badgeOf(p)} /></>}</strong>
                       <span className="muted small">{p.category} · {formatDuration(p.durationMin)}</span>
                     </div>
                     <span className="cat-item__price">{formatMoney(p.price, brand.currency)}</span>
@@ -72,7 +75,7 @@ export function Catalog() {
                 {extras.map((x) => (
                   <li key={x.id} className={`cat-item cat-item--extra ${x.active ? '' : 'is-inactive'}`}>
                     <div className="cat-item__info">
-                      <strong>{x.name}</strong>
+                      <strong>{x.name}{badgeOf(x) && <> <BadgeChip badge={badgeOf(x)} /></>}</strong>
                       <span className="muted small">
                         {x.pricing === 'per_unit' ? `Por unidad (máx. ${x.maxQty})` : 'Precio fijo'} ·{' '}
                         {x.addsMinutes ? `+${formatDuration(x.addsMinutes)} de sesión${x.pricing === 'per_unit' ? ' c/u' : ''} · ` : ''}
@@ -125,7 +128,8 @@ function CatalogEditor({ editing, plans, currency, onClose, onSave }) {
     setErrors(e);
     if (Object.keys(e).length) return;
     setBusy(true);
-    await onSave({ ...item, name: item.name.trim(), price: Math.round(Number(item.price)), durationMin: isPlan ? Number(item.durationMin) : undefined, maxQty: Number(item.maxQty) || 1, addsMinutes: isPlan ? undefined : Math.max(0, Number(item.addsMinutes) || 0) });
+    const badge = item.badge && item.badge.text?.trim() ? { emoji: item.badge.emoji ?? '', text: item.badge.text.trim().slice(0, 30) } : item.badge === undefined ? undefined : null;
+    await onSave({ ...item, badge, name: item.name.trim(), price: Math.round(Number(item.price)), durationMin: isPlan ? Number(item.durationMin) : undefined, maxQty: Number(item.maxQty) || 1, addsMinutes: isPlan ? undefined : Math.max(0, Number(item.addsMinutes) || 0) });
   };
 
   return (
@@ -152,6 +156,7 @@ function CatalogEditor({ editing, plans, currency, onClose, onSave }) {
         <Field label="Descripción">
           <textarea rows={3} value={item.description} onChange={(e) => set({ description: e.target.value })} />
         </Field>
+        <BadgePicker item={item} kind={isPlan ? 'plan' : 'extra'} onChange={(badge) => set({ badge, featured: false })} />
         <div className="form__row">
           <Field label={`Precio (${currency})`} required error={errors.price}>
             <input type="number" min="0" step="1" inputMode="numeric" value={item.price} onChange={(e) => set({ price: e.target.value })} />

@@ -27,7 +27,7 @@ export const plans = [
     price: 8000,
     tone: 'ink',
     active: true,
-    featured: true,
+    badge: { emoji: '🔥', text: 'Más popular' },
   },
 ];
 

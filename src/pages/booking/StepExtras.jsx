@@ -1,3 +1,5 @@
+import { BadgeChip } from '../../components/ui/BadgeChip.jsx';
+import { badgeOf } from '../../lib/badges.js';
 import { CouponBox } from '../../components/booking/CouponBox.jsx';
 import { BookingShell } from '../../components/booking/BookingShell.jsx';
 import { OrderSummary } from '../../components/booking/OrderSummary.jsx';
@@ -62,7 +64,7 @@ export function StepExtras({ data }) {
                   <label className="extra__main">
                     <input type="checkbox" checked={on} onChange={(e) => set(x.id, e.target.checked ? 1 : 0)} className="extra__check" />
                     <span className="extra__text">
-                      <span className="extra__name">{x.name}</span>
+                      <span className="extra__name">{x.name}{badgeOf(x) && <> <BadgeChip badge={badgeOf(x)} /></>}</span>
                       <span className="extra__desc">{x.description}</span>
                     </span>
                     <span className="extra__price">+ {formatMoney(x.price, brand.currency)}</span>
@@ -70,7 +72,7 @@ export function StepExtras({ data }) {
                 ) : (
                   <div className="extra__main">
                     <span className="extra__text">
-                      <span className="extra__name" id={`x-${x.id}`}>{x.name}</span>
+                      <span className="extra__name" id={`x-${x.id}`}>{x.name}{badgeOf(x) && <> <BadgeChip badge={badgeOf(x)} /></>}</span>
                       <span className="extra__desc">
                         {x.description} · {formatMoney(x.price, brand.currency)}{x.addsMinutes ? ` por cada ${formatDuration(x.addsMinutes)}` : ' c/u'}
                       </span>

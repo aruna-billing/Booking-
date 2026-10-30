@@ -1205,3 +1205,17 @@
 .coupon-value { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .coupon-value .field { flex: 0 1 180px; }
 .coupon-field-toggle { margin-bottom: 16px; }
+
+/* Etiquetas con emoji */
+.badge-picker__opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge-opt {
+  min-height: 36px; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--line, #dad7d2); background: #fff; color: inherit; font: inherit; font-size: .875rem; cursor: pointer;
+}
+.badge-opt.is-on { background: var(--ink, #111); color: #fff; border-color: var(--ink, #111); }
+.badge-opt:focus-visible { outline: 2px solid var(--ink, #111); outline-offset: 2px; }
+.badge-picker__custom { display: flex; gap: 8px; margin-top: 10px; }
+.badge-picker__emoji select { width: 110px; }
+.badge-picker__text { flex: 1; }
+.badge-picker__text input { width: 100%; }
+.badge-picker__preview { margin: 8px 0 0; }
