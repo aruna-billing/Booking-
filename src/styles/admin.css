@@ -1163,7 +1163,10 @@
 .private-file__doc { font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; padding: 12px; }
 @keyframes pf-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .private-file.is-loading { animation: none; } }
-.receipt__file { width: min(100%, 220px); }
+/* Ancho fijo: si no, una captura grande del teléfono ensancha la columna y aplasta los datos. */
+.receipt__file { width: 220px; max-width: 100%; flex: none; }
+.receipt--compact .receipt__file { width: 120px; }
+@media (max-width: 480px) { .receipt--compact .receipt__file { width: 96px; } }
 
 /* Google Calendar */
 .gcal-card { margin-bottom: 20px; }
@@ -1233,3 +1236,8 @@
 .email-preview__body p { margin: 0 0 12px; line-height: 1.55; }
 .email-editor__test { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 12px; }
 .email-editor__test .field { flex: 1 1 220px; }
+
+/* Cargos añadidos por el equipo */
+.payments__actions { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.table--lines tr.is-charge th { font-weight: inherit; }
+.line-note { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .75rem; color: var(--muted, #5c5852); font-weight: 400; margin-top: 2px; }

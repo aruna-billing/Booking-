@@ -51,7 +51,7 @@ export function PaidBar({ request: r, compact = false }) {
   );
 }
 
-export function PaymentsPanel({ request: r, onAdd, toast }) {
+export function PaymentsPanel({ request: r, onAdd, onCharge, toast }) {
   const [voiding, setVoiding] = useState(null);
   const cur = r.currency;
   const due = balanceDue(r);
@@ -63,9 +63,16 @@ export function PaymentsPanel({ request: r, onAdd, toast }) {
       <div className="payments__head">
         <CollectionBadge request={r} />
         {r.status !== 'cancelled' && (
-          <Button size="sm" onClick={onAdd} disabled={due === 0} data-testid="add-payment">
-            + Agregar pago
-          </Button>
+          <span className="payments__actions">
+            {onCharge && (
+              <Button size="sm" variant="secondary" onClick={onCharge} data-testid="add-charge">
+                + Agregar cargo
+              </Button>
+            )}
+            <Button size="sm" onClick={onAdd} disabled={due === 0} data-testid="add-payment">
+              + Agregar pago
+            </Button>
+          </span>
         )}
       </div>
       <dl className="payments__facts">

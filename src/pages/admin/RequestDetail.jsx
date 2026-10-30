@@ -1,3 +1,4 @@
+import { AddChargeModal } from '../../components/admin/AddChargeModal.jsx';
 import { PrivateFile } from '../../components/admin/PrivateFile.jsx';
 import { LIVE } from '../../lib/mode.js';
 import { useState } from 'react';
@@ -11,7 +12,7 @@ import { Modal } from '../../components/ui/Modal.jsx';
 import { Field } from '../../components/ui/Field.jsx';
 import { EmptyState, PaymentStatusBadge, RequestStatusBadge, PhotoPlaceholder, useToast } from '../../components/ui/misc.jsx';
 import { Link } from '../../lib/router.jsx';
-import { formatDateTime, formatLongDate, formatTime } from '../../lib/date.js';
+import { formatDateTime, formatLongDate, formatShortDate, formatTime } from '../../lib/date.js';
 import { formatDuration, formatFileSize, formatMoney, shortId } from '../../lib/format.js';
 import { endTime } from '../../lib/availability.js';
 import * as api from '../../services/api.js';
@@ -28,7 +29,8 @@ export function RequestDetail({ id }) {
   const toast = useToast();
   const { user, can } = useAdmin();
   const r = db.requests.find((x) => x.id === id);
-  const [dialog, setDialog] = useState(null); // 'reject' | 'cancel' | 'whatsapp' | 'payment'
+  const [dialog, setDialog] = useState(null); // 'reject' | 'cancel' | 'whatsapp' | 'payment' | 'charge'
+  const [removingCharge, setRemovingCharge] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(null);
 
@@ -152,7 +154,20 @@ export function RequestDetail({ id }) {
               <tbody>
                 <tr><th scope="row">{r.planName}</th><td className="num">{formatMoney(r.quote.planPrice, cur)}</td></tr>
                 {r.quote.lines.map((l) => (
-                  <tr key={l.id}><th scope="row">{l.name}{l.quantity > 1 ? ` × ${l.quantity}` : ''}</th><td className="num">{formatMoney(l.total, cur)}</td></tr>
+                  <tr key={l.id} className={l.source === 'admin' ? 'is-charge' : undefined} data-testid={l.source === 'admin' ? 'charge-line' : undefined}>
+                    <th scope="row">
+                      {l.name}{l.quantity > 1 ? ` × ${l.quantity}` : ''}
+                      {l.source === 'admin' && (
+                        <span className="line-note">
+                          Añadido por {l.addedBy} · {formatShortDate(String(l.addedAt).slice(0, 10))}
+                          {can('payments.manage') && r.status !== 'cancelled' && (
+                            <button type="button" className="link-btn small" onClick={() => setRemovingCharge(l)} data-testid="charge-remove">Quitar</button>
+                          )}
+                        </span>
+                      )}
+                    </th>
+                    <td className="num">{formatMoney(l.total, cur)}</td>
+                  </tr>
                 ))}
                 {r.quote.discount > 0 && (
                   <tr className="is-discount"><th scope="row">Descuento · cupón {r.quote.coupon?.code}{r.quote.coupon?.type === 'percent' ? ` (${r.quote.coupon.value} %)` : ''}</th><td className="num">−{formatMoney(r.quote.discount, cur)}</td></tr>
@@ -203,7 +218,7 @@ export function RequestDetail({ id }) {
 
           {can('finance.view') && (
             <Card title="Cobros y pagos">
-              <PaymentsPanel request={r} onAdd={() => setDialog('payment')} toast={toast} />
+              <PaymentsPanel request={r} onAdd={() => setDialog('payment')} onCharge={can('payments.manage') ? () => setDialog('charge') : undefined} toast={toast} />
             </Card>
           )}
 
@@ -263,6 +278,29 @@ export function RequestDetail({ id }) {
         </div>
       </div>
 
+      {dialog === 'charge' && (
+        <AddChargeModal
+          request={r}
+          onClose={() => setDialog(null)}
+          onSaved={(l) => toast(`Cargo añadido: ${l.name}${l.quantity > 1 ? ` × ${l.quantity}` : ''} (${formatMoney(l.total, r.currency)})`, 'green')}
+        />
+      )}
+      <ConfirmDialog
+        open={!!removingCharge}
+        onClose={() => setRemovingCharge(null)}
+        title="Quitar cargo"
+        message={removingCharge ? `Se quitará «${removingCharge.name}» (${formatMoney(removingCharge.total, r.currency)}) del total. Queda anotado en el historial.` : ''}
+        confirmLabel="Quitar cargo"
+        danger
+        onConfirm={async () => {
+          try {
+            await api.removeCharge(r.id, removingCharge.id);
+            toast('Cargo quitado', 'neutral');
+          } catch (e) {
+            toast(e.message, 'red');
+          }
+        }}
+      />
       {dialog === 'payment' && (
         <AddPaymentModal
           request={r}

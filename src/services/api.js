@@ -15,6 +15,7 @@ import { LIVE } from '../lib/mode.js';
 import { agendaRequests } from '../lib/busy.js';
 import { cleanRules, validateRules } from '../lib/rules.js';
 import { couponStatus, findCoupon, normalizeCode, validateCoupon } from '../lib/coupons.js';
+import { chargeLine, recomputeQuote, validateCharge } from '../lib/charges.js';
 import * as cloud from './cloud.js';
 
 // En la demo se simula la espera de un servidor; en modo real la espera es la de verdad.
@@ -314,6 +315,44 @@ export async function addPayment(id, payment) {
   await updateRequest(id, patch, `Pago registrado: ${money}${record.status === 'pending' ? ' (por verificar)' : ''}`);
   return record;
 }
+
+// ───────────────────────── Cargos añadidos por el equipo ─────────────────────────
+
+/**
+ * Añade un cargo a una solicitud (extra del catálogo o concepto libre) y recalcula
+ * total, saldo y duración. Así luego se puede registrar el pago de ese cargo.
+ */
+export async function addCharge(id, { mode, extraId, qty, name, amount }) {
+  guard('payments.manage', id);
+  const s = getState();
+  const r = s.requests.find((x) => x.id === id);
+  if (!r) throw new Error('Solicitud no encontrada.');
+  if (r.status === 'cancelled') throw new Error('La reserva está cancelada.');
+  const extra = mode === 'extra' ? s.extras.find((x) => x.id === extraId) : null;
+  const errors = validateCharge({ mode, extra, qty, name, amount });
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
+  await delay(200);
+  const line = chargeLine({ extra, qty, name, amount, by: actor() });
+  const quote = recomputeQuote({ ...r.quote, lines: [...(r.quote.lines ?? []), line] });
+  const label = `${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''}`;
+  await updateRequest(id, { quote }, `Cargo añadido: ${label} (${moneyOf(r, line.total)})`);
+  return line;
+}
+
+/** Quita un cargo añadido por el equipo, si lo ya pagado no supera el nuevo total. */
+export async function removeCharge(id, lineId) {
+  guard('payments.manage', id);
+  const r = getState().requests.find((x) => x.id === id);
+  const line = r?.quote.lines.find((l) => l.id === lineId);
+  if (!line || line.source !== 'admin') throw new Error('Solo se pueden quitar los cargos añadidos por el equipo.');
+  const quote = recomputeQuote({ ...r.quote, lines: r.quote.lines.filter((l) => l.id !== lineId) });
+  const paid = (r.payments ?? []).filter((p) => p.status === 'verified').reduce((a, p) => a + p.amount, 0);
+  if (paid > quote.total) throw new Error('No se puede quitar: lo ya pagado superaría el total. Anula antes el pago de este cargo.');
+  await delay(150);
+  await updateRequest(id, { quote }, `Cargo quitado: ${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''} (${moneyOf(r, line.total)})`);
+}
+
+const moneyOf = (r, n) => `${r.currency === 'USD' ? 'US$' : 'RD$'} ${Number(n).toLocaleString('en-US')}`;
 
 export async function voidPayment(id, paymentId, reason) {
   guard('payments.manage', id);

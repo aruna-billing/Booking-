@@ -33,7 +33,7 @@ export function AddPaymentModal({ request: r, open, onClose, onSaved }) {
   const save = async () => {
     const e = {};
     if (!(n > 0)) e.amount = 'Escribe un monto mayor que 0.';
-    else if (n > due) e.amount = `El monto supera lo que falta por pagar (${formatMoney(due, cur)}).`;
+    else if (n > due) e.amount = `El monto supera lo que falta por pagar (${formatMoney(due, cur)}). Si el cliente compró algo más, añádelo antes con «+ Agregar cargo».`;
     if (!date) e.date = 'Indica la fecha del pago.';
     else if (date > toISODate(today())) e.date = 'La fecha no puede ser futura.';
     setErrors(e);

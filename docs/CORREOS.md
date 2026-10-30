@@ -34,7 +34,7 @@ Tiempo aproximado: 20 minutos (más la espera de verificación del dominio).
 ## 3. Subir la función a Supabase
 
 1. Supabase → **Edge Functions → Deploy a new function → Via Editor**.
-2. Nombre: **`booking-emails`**, exactamente así.
+2. Nombre: **`booking-emails`**, exactamente así: en minúsculas (Supabase distingue mayúsculas y los nombres no se pueden cambiar después).
 3. Borra el código de ejemplo, pega **todo** el contenido de `supabase/functions/booking-emails/index.ts` y pulsa **Deploy function**.
 4. Abre la función → **Details** → desactiva **Enforce JWT verification** → **Save**.
 
@@ -53,14 +53,36 @@ El nombre que ve el cliente es el de la marca. Si responde al correo, la respues
 
 ## 5. Conectar la base de datos con la función (webhook)
 
-1. Supabase → **Database → Webhooks**. Si aparece **Enable Hooks**, actívalo.
+1. Supabase → **Integrations → Database Webhooks** (antes estaba en *Database → Webhooks*). Si aparece **Enable webhooks**, actívalo.
 2. **Create a new hook**:
    - **Name:** `booking_emails`
    - **Table:** `booking_requests`
-   - **Events:** marca **Insert** y **Update**
+   - **Events:** marca **Insert** *y* **Update** (sin Update no sale el correo de confirmada)
    - **Type:** **Supabase Edge Functions** → función **booking-emails**, método **POST**
+   - **Timeout:** **5000** ms
    - **HTTP Headers → Add a new header:** nombre `x-webhook-secret`, valor = el mismo `WEBHOOK_SECRET` del paso 4
 3. **Create webhook**.
+4. Comprueba en **SQL Editor** que escucha los dos eventos (deben salir `booking_emails` con **INSERT** y con **UPDATE**):
+
+   ```sql
+   select trigger_name, event_manipulation from information_schema.triggers
+   where event_object_table = 'booking_requests';
+   ```
+
+   Si falta **UPDATE**, esto lo añade sin cambiar nada más:
+
+   ```sql
+   do $$
+   declare d text;
+   begin
+     select pg_get_triggerdef(oid) into d from pg_trigger
+     where tgname = 'booking_emails' and tgrelid = 'public.booking_requests'::regclass;
+     execute 'drop trigger booking_emails on public.booking_requests';
+     execute replace(d, 'AFTER INSERT ON', 'AFTER INSERT OR UPDATE ON');
+   end $$;
+   ```
+
+> El webhook guarda la dirección de la función al crearlo. Si borras o renombras la función, borra el webhook y créalo de nuevo.
 
 ## 6. Probar
 
@@ -76,6 +98,7 @@ El nombre que ve el cliente es el de la marca. Si responde al correo, la respues
 | «Faltan los secretos RESEND_API_KEY o EMAIL_FROM» | Paso 4. |
 | «Resend no envió el correo: … domain is not verified» | Paso 1: el dominio debe estar verificado y `EMAIL_FROM` debe ser de ese dominio. |
 | «No se pudo leer la configuración del sitio» | Paso 4: `SB_PUBLISHABLE_KEY`. |
+| Para ver qué respondió la función a cada aviso | En **SQL Editor**: `select created, status_code, left(content::text, 200) from net._http_response order by created desc limit 5;` (404 = el webhook apunta a otra función; 401 = el secreto no coincide; 200 con `"ok":true` = enviado). |
 | La prueba llega pero los de reservas no | Paso 5: el webhook (tabla, eventos Insert y Update, y la cabecera `x-webhook-secret` igual al secreto). Mira **Edge Functions → booking-emails → Logs**: un error 401 significa que el secreto no coincide. |
 | Llega a spam | Normal los primeros días. Ayuda añadir en Cloudflare el registro **DMARC** que sugiere Resend y pedir a los primeros clientes que lo marquen como «No es spam». |
 
