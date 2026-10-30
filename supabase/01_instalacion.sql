@@ -216,6 +216,60 @@ language sql stable security definer set search_path = public, pg_temp as $$
   order by r.date, r.time;
 $$;
 
+-- Cupones de descuento. La lista está en la configuración PRIVADA (solo administradores);
+-- el público solo puede preguntar por un código concreto con esta función.
+-- Devuelve el cupón si se puede usar, o el motivo si no.
+create or replace function public.coupon_check(p_code text, p_brand text, p_email text, p_today date)
+returns jsonb
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  v_code   text := upper(regexp_replace(coalesce(p_code, ''), '\s+', '', 'g'));
+  v_c      jsonb;
+  v_uses   integer;
+begin
+  if v_code = '' then return jsonb_build_object('valid', false, 'message', 'Escribe el código del cupón.'); end if;
+  select e into v_c
+    from public.site_config sc, jsonb_array_elements(coalesce(sc.data->'coupons', '[]')) e
+   where sc.id = 'private' and upper(e->>'code') = v_code
+   limit 1;
+  if v_c is null or coalesce((v_c->>'active')::boolean, true) is not true then
+    return jsonb_build_object('valid', false, 'message', 'Este cupón no es válido.');
+  end if;
+  if jsonb_typeof(v_c->'brandIds') = 'array' and jsonb_array_length(v_c->'brandIds') > 0
+     and not ((v_c->'brandIds') ? p_brand) then
+    return jsonb_build_object('valid', false, 'message', 'Este cupón no aplica para esta marca.');
+  end if;
+  if nullif(v_c->>'validFrom', '') is not null and p_today < (v_c->>'validFrom')::date then
+    return jsonb_build_object('valid', false, 'message', 'Este cupón todavía no está activo.');
+  end if;
+  if nullif(v_c->>'validTo', '') is not null and p_today > (v_c->>'validTo')::date then
+    return jsonb_build_object('valid', false, 'message', 'Este cupón ya expiró.');
+  end if;
+  select count(*) into v_uses from public.booking_requests
+   where status <> 'cancelled' and upper(payload->'quote'->'coupon'->>'code') = v_code;
+  if nullif(v_c->>'maxUses', '') is not null and jsonb_typeof(v_c->'maxUses') <> 'null'
+     and v_uses >= (v_c->>'maxUses')::numeric then
+    return jsonb_build_object('valid', false, 'message', 'Este cupón ya alcanzó su límite de usos.');
+  end if;
+  if coalesce((v_c->>'onePerClient')::boolean, false) and coalesce(trim(p_email), '') <> '' and exists (
+       select 1 from public.booking_requests
+        where status <> 'cancelled' and upper(payload->'quote'->'coupon'->>'code') = v_code
+          and lower(payload->'client'->>'email') = lower(trim(p_email))) then
+    return jsonb_build_object('valid', false, 'message', 'Ya usaste este cupón en otra reserva.');
+  end if;
+  return jsonb_build_object('valid', true, 'code', v_code, 'type', coalesce(v_c->>'type', 'percent'),
+                            'value', coalesce((v_c->>'value')::numeric, 0));
+end $$;
+
+-- Versión pública: frena los intentos de adivinar códigos con una pequeña espera.
+create or replace function public.check_coupon(p_code text, p_brand text, p_email text default null)
+returns jsonb
+language plpgsql volatile security definer set search_path = public, pg_temp as $$
+begin
+  perform pg_sleep(0.4);
+  return public.coupon_check(p_code, p_brand, p_email, (now() at time zone 'America/Santo_Domingo')::date);
+end $$;
+
 -- Reserva del público. Recalcula precio y duración con el catálogo publicado,
 -- vuelve a comprobar el horario y guarda la solicitud. Ignora cualquier precio
 -- que mande el navegador.
@@ -265,6 +319,9 @@ declare
   v_file     jsonb;
   v_fobj     record;
   v_payload  jsonb;
+  v_coupon   jsonb;
+  v_subtotal integer;
+  v_discount integer := 0;
 begin
   -- Catálogo publicado
   select data into cfg from public.site_config where id = 'public';
@@ -316,7 +373,22 @@ begin
     v_extra_min    := v_extra_min + coalesce((v_extra->>'addsMinutes')::integer, 0) * v_units;
   end loop;
 
-  v_total   := v_plan_price + v_extras_total;
+  v_subtotal := v_plan_price + v_extras_total;
+
+  -- Cupón (mismo cálculo que src/lib/coupons.js). Se comprueba con el correo del cliente.
+  if nullif(trim(coalesce(p->>'couponCode', '')), '') is not null then
+    -- Un uso a la vez por cupón, para que dos reservas simultáneas no pasen del límite.
+    perform pg_advisory_xact_lock(hashtext('coupon|' || upper(trim(p->>'couponCode'))));
+    v_coupon := public.coupon_check(p->>'couponCode', v_brand_id, v_email, v_today);
+    if not (v_coupon->>'valid')::boolean then
+      raise exception '% Quítalo para continuar.', v_coupon->>'message';
+    end if;
+    v_discount := least(v_subtotal, case when v_coupon->>'type' = 'percent'
+      then round(v_subtotal * least(100, greatest(0, (v_coupon->>'value')::numeric)) / 100.0)
+      else round(greatest(0, (v_coupon->>'value')::numeric)) end);
+  end if;
+
+  v_total   := v_subtotal - v_discount;
   v_pct     := least(100, greatest(0, coalesce((v_brand->>'depositPercent')::integer, 0)));
   v_deposit := round(v_total * v_pct / 100.0);
   v_dur     := v_base_min + v_extra_min;
@@ -411,7 +483,10 @@ begin
     'planName', v_plan->>'name',
     'currency', coalesce(v_brand->>'currency', 'DOP'),
     'quote', jsonb_build_object(
-      'planPrice', v_plan_price, 'lines', v_lines, 'extrasTotal', v_extras_total, 'total', v_total,
+      'planPrice', v_plan_price, 'lines', v_lines, 'extrasTotal', v_extras_total,
+      'subtotal', v_subtotal, 'discount', v_discount,
+      'coupon', case when v_discount > 0 then jsonb_build_object('code', v_coupon->>'code', 'type', v_coupon->>'type', 'value', (v_coupon->>'value')::numeric) else null end,
+      'total', v_total,
       'depositPercent', v_pct, 'deposit', v_deposit, 'balance', v_total - v_deposit,
       'baseDurationMin', v_base_min, 'extraMinutes', v_extra_min, 'durationMin', v_base_min + v_extra_min),
     'date', v_date::text,
@@ -527,6 +602,9 @@ revoke all on function public.create_booking_request(jsonb) from public;
 grant execute on function public.create_booking_request(jsonb) to anon, authenticated;
 revoke all on function public.get_busy_slots(text, date, date) from public;
 grant execute on function public.get_busy_slots(text, date, date) to anon, authenticated;
+revoke all on function public.check_coupon(text, text, text) from public;
+grant execute on function public.check_coupon(text, text, text) to anon, authenticated;
+revoke all on function public.coupon_check(text, text, text, date) from public, anon, authenticated;
 revoke all on function public.add_staff_member(text, text, text, text[]) from public;
 grant execute on function public.add_staff_member(text, text, text, text[]) to authenticated;
 grant execute on function public.is_staff(), public.is_admin(), public.staff_can_see_brand(text) to anon, authenticated;

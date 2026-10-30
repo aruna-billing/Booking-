@@ -154,6 +154,9 @@ export function RequestDetail({ id }) {
                 {r.quote.lines.map((l) => (
                   <tr key={l.id}><th scope="row">{l.name}{l.quantity > 1 ? ` × ${l.quantity}` : ''}</th><td className="num">{formatMoney(l.total, cur)}</td></tr>
                 ))}
+                {r.quote.discount > 0 && (
+                  <tr className="is-discount"><th scope="row">Descuento · cupón {r.quote.coupon?.code}{r.quote.coupon?.type === 'percent' ? ` (${r.quote.coupon.value} %)` : ''}</th><td className="num">−{formatMoney(r.quote.discount, cur)}</td></tr>
+                )}
                 <tr className="is-total"><th scope="row">Total</th><td className="num">{formatMoney(r.quote.total, cur)}</td></tr>
                 <tr><th scope="row">Anticipo requerido ({r.quote.depositPercent} %)</th><td className="num">{formatMoney(r.quote.deposit, cur)}</td></tr>
                 <tr><th scope="row">Saldo después del anticipo</th><td className="num">{formatMoney(r.quote.balance, cur)}</td></tr>

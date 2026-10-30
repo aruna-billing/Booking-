@@ -1171,3 +1171,37 @@
 .gcal-card__list { margin: 0 0 12px; padding-left: 1.1rem; display: grid; gap: 4px; }
 .gcal-card__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .gcal-card__email { overflow-wrap: anywhere; }
+
+/* Listas editables (preguntas frecuentes, avisos) */
+.pz-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.pz-list__item { border: 1px solid var(--line, #dad7d2); padding: 12px 14px; display: grid; gap: 10px; background: var(--surface, #fff); }
+.pz-list__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pz-list__tools { display: inline-flex; gap: 4px; }
+
+.logo-size { display: grid; gap: 6px; margin-top: 4px; }
+.logo-size__row { display: flex; align-items: center; gap: 12px; }
+.logo-size input[type=range] { flex: 1; max-width: 320px; accent-color: var(--ink, #111); }
+
+/* Editor de horario */
+.day-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-chip {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 52px; min-height: 40px; padding: 0 10px;
+  border: 1px solid var(--line, #dad7d2); background: #fff; cursor: pointer; font-size: .9rem;
+}
+.day-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.day-chip.is-on { background: var(--ink, #111); color: #fff; border-color: var(--ink, #111); }
+.day-chip:focus-within { outline: 2px solid var(--ink, #111); outline-offset: 2px; }
+.break-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.break-row input:not([type=time]) { flex: 1 1 120px; min-width: 0; }
+.break-row input[type=time] { width: 120px; }
+.break-row__error { flex-basis: 100%; margin: 0; }
+.form__row--3 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.rules-editor__actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* Cupones */
+.coupon-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+.coupon-value { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.coupon-value .field { flex: 0 1 180px; }
+.coupon-field-toggle { margin-bottom: 16px; }

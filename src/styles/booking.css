@@ -890,3 +890,15 @@ label.extra__main {
 .booking-route-loading h1 { font-size: 1.4rem; margin: 0 0 .5rem; color: var(--ink, #111); }
 .booking-route-loading p { margin: 0 0 1rem; }
 .demo-notice--live { border-style: solid; }
+
+/* Cupón de descuento */
+.coupon-box { margin: 20px 0 4px; }
+.coupon-box--open { display: grid; gap: 8px; max-width: 420px; }
+.coupon-box__row { display: flex; gap: 8px; }
+.coupon-box__row input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: .04em; }
+.coupon-box--applied {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  padding: 12px 14px; border: 1px dashed var(--accent, #d7262e); background: color-mix(in srgb, var(--accent, #d7262e) 6%, var(--surface, #fff));
+  max-width: 520px;
+}
+.summary__row--discount dd, .summary__row--discount dt { color: var(--accent, #b3261e); }

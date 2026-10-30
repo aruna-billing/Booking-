@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   { key: 'web.manage', label: 'Personalizar la web' },
   { key: 'brands.manage', label: 'Configurar marcas y marca matriz' },
   { key: 'terms.manage', label: 'Editar términos y condiciones' },
+  { key: 'coupons.manage', label: 'Crear y editar cupones de descuento' },
   { key: 'users.manage', label: 'Gestionar usuarios y roles' },
 ];
 

@@ -28,6 +28,7 @@ const NAV = [
   { perm: 'finance.view', to: '/admin/finanzas', label: 'Finanzas', icon: 'M3 6h18v12H3zM3 10h18M7 15h4M16 15h1' },
   { perm: 'calendar.manage', to: '/admin/calendario', label: 'Calendario', icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4' },
   { perm: 'catalog.manage', to: '/admin/catalogo', label: 'Planes y extras', icon: 'M4 7l8-4 8 4-8 4zM4 12l8 4 8-4M4 17l8 4 8-4' },
+  { perm: 'coupons.manage', to: '/admin/cupones', label: 'Cupones', icon: 'M3 9V6a1 1 0 011-1h16a1 1 0 011 1v3a3 3 0 000 6v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3a3 3 0 000-6zM9 15l6-6M9.5 9.5h.01M14.5 14.5h.01' },
   { perm: 'accounts.manage', to: '/admin/cuentas', label: 'Cuentas bancarias', icon: 'M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18' },
   { perm: 'web.manage', to: '/admin/personalizacion', label: 'Personalización', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9.5a1 1 0 100-.1' },
   { perm: 'brands.manage', to: '/admin/marcas', label: 'Marcas', icon: 'M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.6 0-1.3-1-1.4-1-2.6 0-1 .8-1.8 1.8-1.8H17a4 4 0 004-4c0-4.4-4-8-9-8zM7.5 12a1 1 0 100-.1M10 7.5a1 1 0 100-.1M15 7.5a1 1 0 100-.1' },

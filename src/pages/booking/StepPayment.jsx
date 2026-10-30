@@ -1,3 +1,4 @@
+import { CouponBox } from '../../components/booking/CouponBox.jsx';
 import { LIVE } from '../../lib/mode.js';
 import { useRef, useState } from 'react';
 import { BookingShell } from '../../components/booking/BookingShell.jsx';
@@ -14,7 +15,7 @@ import { createBookingRequest } from '../../services/api.js';
 import { webText } from '../../lib/webConfig.js';
 
 export function StepPayment({ data }) {
-  const { brand, plan, quote, draft, dispatch, bankAccounts } = data;
+  const { brand, plan, quote, draft, dispatch, bankAccounts, db } = data;
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
   const [serverError, setServerError] = useState(null);
@@ -82,9 +83,11 @@ export function StepPayment({ data }) {
           {formatMoney(quote.deposit, brand.currency)}
         </p>
         <p className="amount-due__note">
-          Total de la reserva {formatMoney(quote.total, brand.currency)} · saldo de {formatMoney(quote.balance, brand.currency)} a pagar el día de la sesión.
+          Total de la reserva {formatMoney(quote.total, brand.currency)}
+          {quote.discount > 0 && <> (con {formatMoney(quote.discount, brand.currency)} de descuento)</>} · saldo de {formatMoney(quote.balance, brand.currency)} a pagar el día de la sesión.
         </p>
       </div>
+      {(db.organization.showCouponField !== false || draft.coupon) && <CouponBox brand={brand} draft={draft} dispatch={dispatch} quote={quote} />}
 
       <DemoNotice>Las cuentas mostradas son <strong>ficticias</strong>. No realices ninguna transferencia a estos datos.</DemoNotice>
 
@@ -119,7 +122,9 @@ export function StepPayment({ data }) {
 
       <div className="payment-proof" ref={errRef}>
         <FilePicker
-          label="Comprobante de pago"
+          label={webText(brand, 'receiptLabel')}
+          prompt={webText(brand, 'receiptPrompt')}
+          buttonText={webText(brand, 'receiptButton')}
           required
           files={p.receipt ? [p.receipt] : []}
           onChange={(files) => update({ receipt: files[0] ?? null })}
@@ -127,7 +132,7 @@ export function StepPayment({ data }) {
           maxSizeMB={FILE_RULES.receipt.maxSizeMB}
           accept={FILE_RULES.receipt.accept}
           error={show('receipt')}
-          hint="Foto o captura de la transferencia"
+          hint={webText(brand, 'receiptHint')}
         />
         <Checkbox checked={p.confirmedPaid} onChange={(v) => update({ confirmedPaid: v })} error={show('confirmedPaid')} name="confirmedPaid" aria-required="true">
           Ya hice mi pago <span className="field__req" aria-hidden="true">*</span>

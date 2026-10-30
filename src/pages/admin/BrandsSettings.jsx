@@ -1,3 +1,4 @@
+import { LOGO_SCALE, logoScale } from '../../lib/webConfig.js';
 import { LIVE } from '../../lib/mode.js';
 import { useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
@@ -259,6 +260,7 @@ function BrandEditor({ brand, db }) {
                 testId={`logo-dark-${b.id}`}
               />
             </div>
+            <LogoSize value={b.logoScale} onChange={(v) => set({ logoScale: v })} testId={`logo-size-${b.id}`} />
             <p className="muted small">Sin logo subido se usa el logotipo tipográfico provisional. Si solo subes la versión para fondos claros, en la franja negra se muestra sobre una placa clara.</p>
           </fieldset>
 
@@ -345,6 +347,7 @@ function OrganizationEditor({ org, brands }) {
               testId="logo-org-dark"
             />
           </div>
+          <LogoSize value={o.logoScale} onChange={(v) => set({ logoScale: v })} testId="logo-size-org" />
 
           <fieldset className="fieldset footer-config" data-testid="footer-config">
             <legend className="footer-config__title">Pie de página</legend>
@@ -527,5 +530,29 @@ function DeleteBrandDialog({ brand, db, onClose, onHide }) {
         </>
       )}
     </Modal>
+  );
+}
+
+/** Tamaño del logo en la web (porcentaje del tamaño normal). */
+function LogoSize({ value, onChange, testId }) {
+  const v = Math.round(logoScale(value) * 100);
+  return (
+    <div className="logo-size">
+      <label className="field__label" htmlFor={testId}>Tamaño del logo en la web: <strong>{v} %</strong></label>
+      <div className="logo-size__row">
+        <input
+          id={testId}
+          type="range"
+          min={LOGO_SCALE.min}
+          max={LOGO_SCALE.max}
+          step={LOGO_SCALE.step}
+          value={v}
+          onChange={(e) => onChange(Number(e.target.value))}
+          data-testid={testId}
+        />
+        {v !== 100 && <button type="button" className="link-btn small" onClick={() => onChange(100)}>Normal</button>}
+      </div>
+      <p className="field__hint">Agranda o achica el logo en la cabecera, la portada y el pie. En el celular nunca pasa del ancho de la pantalla.</p>
+    </div>
   );
 }

@@ -19,6 +19,7 @@ import { Finance } from './pages/admin/Finance.jsx';
 import { Personalization } from './pages/admin/Personalization.jsx';
 import { Users } from './pages/admin/Users.jsx';
 import { Tracking } from './pages/admin/Tracking.jsx';
+import { Coupons } from './pages/admin/Coupons.jsx';
 import { AdminLogin } from './pages/admin/Login.jsx';
 import { LIVE } from './lib/mode.js';
 import { useAuthState } from './lib/auth.js';
@@ -36,6 +37,7 @@ const ADMIN_ROUTES = [
   { perm: 'finance.view', pattern: '/admin/finanzas', title: 'Finanzas', render: () => <Finance /> },
   { perm: 'calendar.manage', pattern: '/admin/calendario', title: 'Calendario', render: () => <CalendarAdmin /> },
   { perm: 'catalog.manage', pattern: '/admin/catalogo', title: 'Planes y extras', render: () => <Catalog /> },
+  { perm: 'coupons.manage', pattern: '/admin/cupones', title: 'Cupones', render: () => <Coupons /> },
   { perm: 'accounts.manage', pattern: '/admin/cuentas', title: 'Cuentas bancarias', render: () => <BankAccounts /> },
   { perm: 'web.manage', pattern: '/admin/personalizacion', title: 'Personalización', render: () => <Personalization /> },
   { perm: 'brands.manage', pattern: '/admin/marcas', title: 'Marcas', render: () => <BrandsSettings /> },

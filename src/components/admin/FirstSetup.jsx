@@ -62,7 +62,7 @@ export function FirstSetup({ canSetup }) {
       <ul>
         <li>La marca, sus colores y textos.</li>
         <li>Los planes Estándar y Pro, y extras de ejemplo (puedes cambiarlos o borrarlos).</li>
-        <li>Horario de lunes a sábado, 9:00 a 18:00, con pausa de 13:00 a 14:00.</li>
+        <li>Horario todos los días, domingos incluidos, de 8:00 a. m. a 9:00 p. m., sin pausa (se cambia en Calendario).</li>
         <li>Términos de ejemplo, que debes reemplazar por los oficiales.</li>
       </ul>
       <p className="muted small">No se crean cuentas bancarias ni solicitudes: las cuentas las añades tú después.</p>

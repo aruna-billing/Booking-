@@ -1,3 +1,4 @@
+import { discountFor, normalizeCode } from './coupons.js';
 // Cálculo de precios. Función pura: la misma lógica deberá repetirse en el
 // servidor (Supabase Edge Function / RPC) para no confiar en el total que envía el navegador.
 
@@ -8,7 +9,7 @@
  * @param {Record<string, number>} args.selection  { [extraId]: cantidad }
  * @param {number} args.depositPercent         Porcentaje de anticipo (0–100)
  */
-export function computeQuote({ plan, extras = [], selection = {}, depositPercent = 0 }) {
+export function computeQuote({ plan, extras = [], selection = {}, depositPercent = 0, coupon = null }) {
   const planPrice = plan ? toAmount(plan.price) : 0;
 
   const lines = Object.entries(selection)
@@ -29,7 +30,10 @@ export function computeQuote({ plan, extras = [], selection = {}, depositPercent
     .filter(Boolean);
 
   const extrasTotal = lines.reduce((sum, l) => sum + l.total, 0);
-  const total = planPrice + extrasTotal;
+  const subtotal = planPrice + extrasTotal;
+  // Cupón: se descuenta del total (plan + extras); el anticipo se calcula ya con descuento.
+  const discount = coupon ? discountFor(coupon, subtotal) : 0;
+  const total = subtotal - discount;
   const pct = Math.min(100, Math.max(0, Number(depositPercent) || 0));
   const deposit = Math.round((total * pct) / 100);
 
@@ -41,6 +45,9 @@ export function computeQuote({ plan, extras = [], selection = {}, depositPercent
     planPrice,
     lines,
     extrasTotal,
+    subtotal,
+    discount,
+    coupon: coupon && discount > 0 ? { code: normalizeCode(coupon.code), type: coupon.type, value: Number(coupon.value) } : null,
     total,
     depositPercent: pct,
     deposit,

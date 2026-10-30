@@ -10,6 +10,7 @@ export const emptyDraft = (brandId = null) => ({
   brandId,
   planId: null,
   extras: {}, // { [extraId]: cantidad }
+  coupon: null, // { code, type, value } ya comprobado
   date: null,
   time: null,
   details: {
@@ -38,6 +39,8 @@ function reducer(state, action) {
       else extras[action.extraId] = action.qty;
       return { ...state, extras };
     }
+    case 'setCoupon':
+      return { ...state, coupon: action.coupon ?? null };
     case 'setSlot':
       return { ...state, date: action.date, time: action.time };
     case 'updateDetails':

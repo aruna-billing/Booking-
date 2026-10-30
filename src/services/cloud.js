@@ -44,6 +44,7 @@ function applyConfig(pub, priv) {
       if (pub && pub[k] !== undefined) next[k] = pub[k];
     });
     next.bankAccounts = priv?.bankAccounts ?? (privateLoaded ? s.bankAccounts : pub?.bankAccounts ?? []);
+    if (priv) next.coupons = priv.coupons ?? [];
     return next;
   });
 }
@@ -132,7 +133,8 @@ export function saveConfig() {
     const bankAccounts = s.bankAccounts;
     const rows = [
       { id: 'public', data: { ...config, bankAccounts: bankAccounts.filter((a) => a.active) } },
-      { id: 'private', data: { bankAccounts } },
+      // Los cupones son privados: el público solo puede comprobar un código con check_coupon.
+      { id: 'private', data: { bankAccounts, coupons: s.coupons ?? [] } },
     ];
     const { error } = await supabase.from('site_config').upsert(rows);
     if (error) throw fail(error, 'No se pudo guardar la configuración.');
@@ -200,6 +202,14 @@ export async function createRequest(input) {
   const { data, error } = await supabase.rpc('create_booking_request', { p: input });
   if (error) throw fail(error, 'No se pudo enviar tu solicitud. Inténtalo de nuevo.');
   return data;
+}
+
+/** Público: comprueba un cupón en el servidor (sin ver la lista de cupones). */
+export async function checkCoupon(code, brandId, email) {
+  const { data, error } = await supabase.rpc('check_coupon', { p_code: code, p_brand: brandId, p_email: email || null });
+  if (error) throw fail(error, 'No se pudo comprobar el cupón.');
+  if (!data?.valid) throw new Error(data?.message || 'Este cupón no es válido.');
+  return { code: data.code, type: data.type, value: Number(data.value) };
 }
 
 /**
@@ -400,7 +410,7 @@ export function stopStaffSession() {
   privateLoaded = false;
   clearInterval(pollTimer);
   document.removeEventListener('visibilitychange', onVisible);
-  setState((s) => ({ ...s, requests: [], users: [], bankAccounts: s.bankAccounts.filter((a) => a.active) }));
+  setState((s) => ({ ...s, requests: [], users: [], coupons: [], bankAccounts: s.bankAccounts.filter((a) => a.active) }));
   setCloudStatus({ staff: 'idle', saveError: null });
 }
 

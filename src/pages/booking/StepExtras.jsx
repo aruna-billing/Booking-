@@ -1,3 +1,4 @@
+import { CouponBox } from '../../components/booking/CouponBox.jsx';
 import { BookingShell } from '../../components/booking/BookingShell.jsx';
 import { OrderSummary } from '../../components/booking/OrderSummary.jsx';
 import { StepActions } from '../../components/booking/StepActions.jsx';
@@ -9,7 +10,7 @@ import { isEventBrand } from '../../data/brands.js';
 import { webText } from '../../lib/webConfig.js';
 
 export function StepExtras({ data }) {
-  const { brand, plan, extras, selection, quote, draft, dispatch } = data;
+  const { brand, plan, extras, selection, quote, draft, dispatch, db } = data;
   const toast = useToast();
   const set = (extraId, qty) => {
     dispatch({ type: 'setExtra', extraId, qty });
@@ -86,6 +87,7 @@ export function StepExtras({ data }) {
           })}
         </ul>
       )}
+      {db.organization.showCouponField !== false && <CouponBox brand={brand} draft={draft} dispatch={dispatch} quote={quote} />}
     </BookingShell>
   );
 }

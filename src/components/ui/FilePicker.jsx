@@ -10,7 +10,7 @@ import { uploadClientFile } from '../../services/cloud.js';
  *   (solo el equipo puede verlo). Cada archivo lleva `status` ('uploading' | 'ready' |
  *   'error') y, al terminar, `path`.
  */
-export function FilePicker({ label, hint, files, onChange, maxFiles = 1, maxSizeMB = 10, accept = [], error, required }) {
+export function FilePicker({ label, hint, prompt, buttonText, files, onChange, maxFiles = 1, maxSizeMB = 10, accept = [], error, required }) {
   const inputId = useId();
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -101,9 +101,9 @@ export function FilePicker({ label, hint, files, onChange, maxFiles = 1, maxSize
             <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <p className="dropzone__text">
-            Arrastra {maxFiles > 1 ? 'tus imágenes' : 'el archivo'} aquí o{' '}
+            {prompt ?? `Arrastra ${maxFiles > 1 ? 'tus imágenes' : 'el archivo'} aquí o`}{' '}
             <button type="button" className="link-btn" onClick={() => inputRef.current?.click()} aria-describedby={`${hintId} ${shownError ? errorId : ''}`}>
-              elige desde tu dispositivo
+              {buttonText || 'elige desde tu dispositivo'}
             </button>
           </p>
           <p className="dropzone__meta" id={hintId}>

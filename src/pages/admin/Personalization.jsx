@@ -8,7 +8,7 @@ import { Field } from '../../components/ui/Field.jsx';
 import { Modal } from '../../components/ui/Modal.jsx';
 import { Badge, DemoNotice, EmptyState, useToast } from '../../components/ui/misc.jsx';
 import { Link } from '../../lib/router.jsx';
-import { HERO_SIZES, MAX_GALLERY, TEXT_FIELDS, getOrgWeb, getWeb, imageUsage, planTypeVars } from '../../lib/webConfig.js';
+import { HERO_SIZES, MAX_FAQ, MAX_GALLERY, MAX_NOTICES, TEXT_FIELDS, getOrgWeb, getWeb, imageUsage, planTypeVars } from '../../lib/webConfig.js';
 import { FONT_OPTIONS, TITLE_SIZES, WEIGHTS, ensureAllFonts, fontOption } from '../../lib/fonts.js';
 import { brandStyle } from '../../components/ui/BrandMark.jsx';
 import { formatDuration, formatFileSize, formatMoney } from '../../lib/format.js';
@@ -157,8 +157,6 @@ function BrandWebEditor({ brand, plans, onDirty }) {
   const initial = buildDraft(brand, plans);
   const [d, setD] = useState(initial);
   const [busy, setBusy] = useState(false);
-  const [addingPhoto, setAddingPhoto] = useState(false);
-  const dragFrom = useRef(null);
   const dirty = JSON.stringify(d) !== JSON.stringify(initial);
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
@@ -166,15 +164,6 @@ function BrandWebEditor({ brand, plans, onDirty }) {
   const setHero = (patch) => setD((x) => ({ ...x, web: { ...x.web, hero: { ...x.web.hero, ...patch } } }));
   const setStudio = (patch) => setD((x) => ({ ...x, studio: { ...x.studio, ...patch } }));
   const setText = (key, v) => setD((x) => ({ ...x, web: { ...x.web, texts: { ...x.web.texts, [key]: v } } }));
-  const items = d.web.gallery.items;
-  const setItems = (next) => setWeb({ gallery: { ...d.web.gallery, items: next } });
-  const move = (from, to) => {
-    if (to < 0 || to >= items.length || from === to) return;
-    const next = [...items];
-    const [it] = next.splice(from, 1);
-    next.splice(to, 0, it);
-    setItems(next);
-  };
 
   return (
     <div className="pz">
@@ -268,43 +257,48 @@ function BrandWebEditor({ brand, plans, onDirty }) {
 
       {/* 3. Galería */}
       <Card
-        title={`3 · Galería (${items.length}/${MAX_GALLERY})`}
+        title={`3 · Galería (${d.web.gallery.items.length})`}
         actions={<Toggle checked={d.web.gallery.show} onChange={(v) => setWeb({ gallery: { ...d.web.gallery, show: v } })} label={d.web.gallery.show ? 'Visible' : 'Oculta'} />}
       >
-        <p className="muted small">Arrastra las fotos o usa las flechas para cambiar el orden. La etiqueta solo se ve sobre los marcadores sin foto.</p>
-        <ol className={`pz-gallery ${d.web.gallery.show ? '' : 'is-off'}`} data-testid="pz-gallery">
-          {items.map((it, i) => (
-            <li
-              key={i}
-              draggable
-              onDragStart={() => (dragFrom.current = i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => { move(dragFrom.current, i); dragFrom.current = null; }}
-              className="pz-gallery__item"
-            >
-              <span className="pz-gallery__num" aria-hidden="true">{i + 1}</span>
-              <ImageSlot compact imageId={it.imageId} onChange={(id) => setItems(items.map((x, j) => (j === i ? { ...x, imageId: id } : x)))} brandId={brand.id} ratio="3 / 4" />
-              <Field label={`Etiqueta foto ${i + 1}`}>
-                <input value={it.label} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-              </Field>
-              <div className="pz-gallery__tools">
-                <button type="button" className="icon-btn icon-btn--sm" disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Mover foto ${i + 1} antes`}>←</button>
-                <button type="button" className="icon-btn icon-btn--sm" disabled={i === items.length - 1} onClick={() => move(i, i + 1)} aria-label={`Mover foto ${i + 1} después`}>→</button>
-                <button type="button" className="icon-btn icon-btn--sm" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={`Quitar foto ${i + 1} de la galería`}>✕</button>
-              </div>
-            </li>
-          ))}
-        </ol>
-        {items.length < MAX_GALLERY && (
-          <Button variant="secondary" size="sm" onClick={() => setAddingPhoto(true)} data-testid="pz-gallery-add">+ Añadir foto a la galería</Button>
-        )}
-        {addingPhoto && (
-          <ImagePicker open onClose={() => setAddingPhoto(false)} brandId={brand.id} title="Añadir foto a la galería" onPick={(id) => setItems([...items, { imageId: id, label: '' }])} />
-        )}
+        <PhotoListEditor
+          items={d.web.gallery.items}
+          onChange={(items) => setWeb({ gallery: { ...d.web.gallery, items } })}
+          off={!d.web.gallery.show}
+          brandId={brand.id}
+          name="Galería"
+          testId="pz-gallery"
+        />
       </Card>
 
-      {/* 4. Planes */}
-      <Card title="4 · Sección de planes">
+      {/* 4. Paletas de colores */}
+      <Card
+        title={`4 · ${d.web.palette.title.trim() || 'Paletas de colores'} (${d.web.palette.items.length})`}
+        actions={<Toggle checked={d.web.palette.show} onChange={(v) => setWeb({ palette: { ...d.web.palette, show: v } })} label={d.web.palette.show ? 'Visible' : 'Oculta'} />}
+      >
+        <p className="muted small">Segundo carrusel, debajo de la galería. Si no tiene fotos, no se muestra en la web.</p>
+        <div className={`form ${d.web.palette.show ? '' : 'is-off'}`}>
+          <div className="form__row">
+            <Field label="Título del carrusel">
+              <input value={d.web.palette.title} onChange={(e) => setWeb({ palette: { ...d.web.palette, title: e.target.value } })} placeholder="Paletas de colores" data-testid="pz-palette-title" />
+            </Field>
+            <Toggle checked={d.web.palette.showTitle} onChange={(v) => setWeb({ palette: { ...d.web.palette, showTitle: v } })} label={d.web.palette.showTitle ? 'Título visible' : 'Sin título (solo fotos)'} />
+          </div>
+        </div>
+        <PhotoListEditor
+          items={d.web.palette.items}
+          onChange={(items) => setWeb({ palette: { ...d.web.palette, items } })}
+          off={!d.web.palette.show}
+          brandId={brand.id}
+          name={d.web.palette.title.trim() || 'Paletas de colores'}
+          testId="pz-palette"
+        />
+      </Card>
+
+      {/* 5. Planes */}
+      <Card
+        title="5 · Sección de planes"
+        actions={<Toggle checked={d.web.planImages.show} onChange={(v) => setWeb({ planImages: { ...d.web.planImages, show: v } })} label={d.web.planImages.show ? 'Con imágenes' : 'Solo texto'} data-testid="pz-plan-images" />}
+      >
         <div className="form">
           <div className="form__row">
             <Field label="Texto sobre el titular">
@@ -318,7 +312,7 @@ function BrandWebEditor({ brand, plans, onDirty }) {
         {plans.length === 0 ? (
           <EmptyState title="Esta marca aún no tiene planes." action={<Link to="/admin/catalogo">Crear un plan →</Link>} />
         ) : (
-          <ul className="pz-plans">
+          d.web.planImages.show ? <ul className="pz-plans">
             {plans.map((p) => (
               <li key={p.id}>
                 <ImageSlot
@@ -333,7 +327,7 @@ function BrandWebEditor({ brand, plans, onDirty }) {
                 {!p.active && <Badge tone="neutral">Plan oculto</Badge>}
               </li>
             ))}
-          </ul>
+          </ul> : <p className="muted small">Las tarjetas de los planes se muestran solo con texto. Activa «Con imágenes» para elegir una foto por plan.</p>
         )}
         <PlanTypeEditor
           brand={brand}
@@ -345,8 +339,58 @@ function BrandWebEditor({ brand, plans, onDirty }) {
         />
       </Card>
 
-      {/* 5. Tarjeta en la portada general */}
-      <Card title="5 · Tarjeta en la portada general">
+      {/* 6. Preguntas frecuentes */}
+      <Card
+        title={`6 · Preguntas frecuentes (${d.web.faq.items.length})`}
+        actions={<Toggle checked={d.web.faq.show} onChange={(v) => setWeb({ faq: { ...d.web.faq, show: v } })} label={d.web.faq.show ? 'Visible' : 'Oculta'} />}
+      >
+        <p className="muted small">Se muestran debajo de los planes. El cliente toca una pregunta para ver la respuesta.</p>
+        <ListEditor
+          off={!d.web.faq.show}
+          title={d.web.faq.title}
+          titlePlaceholder="Preguntas frecuentes"
+          onTitle={(title) => setWeb({ faq: { ...d.web.faq, title } })}
+          items={d.web.faq.items}
+          onChange={(items) => setWeb({ faq: { ...d.web.faq, items } })}
+          max={MAX_FAQ}
+          blank={{ q: '', a: '' }}
+          addLabel="+ Añadir pregunta"
+          itemName="Pregunta"
+          fields={[
+            { key: 'q', label: 'Pregunta', placeholder: 'Ej.: ¿Puedo llevar acompañantes?' },
+            { key: 'a', label: 'Respuesta', multiline: true },
+          ]}
+          testId="pz-faq"
+        />
+      </Card>
+
+      {/* 7. Avisos */}
+      <Card
+        title={`7 · Avisos (${d.web.notices.items.length})`}
+        actions={<Toggle checked={d.web.notices.show} onChange={(v) => setWeb({ notices: { ...d.web.notices, show: v } })} label={d.web.notices.show ? 'Visibles' : 'Ocultos'} />}
+      >
+        <p className="muted small">Se muestran debajo de las preguntas frecuentes, resaltados. Útil para cierres por feriado, cambios de horario o recordatorios.</p>
+        <ListEditor
+          off={!d.web.notices.show}
+          title={d.web.notices.title}
+          titlePlaceholder="Avisos"
+          onTitle={(title) => setWeb({ notices: { ...d.web.notices, title } })}
+          items={d.web.notices.items}
+          onChange={(items) => setWeb({ notices: { ...d.web.notices, items } })}
+          max={MAX_NOTICES}
+          blank={{ title: '', text: '' }}
+          addLabel="+ Añadir aviso"
+          itemName="Aviso"
+          fields={[
+            { key: 'title', label: 'Título (opcional)', placeholder: 'Ej.: Cerrado el 24 de diciembre' },
+            { key: 'text', label: 'Texto', multiline: true },
+          ]}
+          testId="pz-notices"
+        />
+      </Card>
+
+      {/* 8. Tarjeta en la portada general */}
+      <Card title="8 · Tarjeta en la portada general">
         <div className="pz-row">
           <ImageSlot label="Imagen de la tarjeta" imageId={d.web.cardImageId} onChange={(id) => setWeb({ cardImageId: id })} brandId={brand.id} ratio="16 / 10" testId="slot-card" />
           <Field label="Descripción de la tarjeta">
@@ -355,8 +399,8 @@ function BrandWebEditor({ brand, plans, onDirty }) {
         </div>
       </Card>
 
-      {/* 6. Textos */}
-      <Card title="6 · Textos del recorrido de reserva">
+      {/* 9. Textos */}
+      <Card title="9 · Textos del recorrido de reserva">
         <p className="muted small">Si dejas un campo vacío se usa el texto predeterminado (se ve en gris).</p>
         <div className="form">
           {TEXT_FIELDS.filter((f) => f.key !== 'plansEyebrow').map((f) => {
@@ -389,6 +433,105 @@ function BrandWebEditor({ brand, plans, onDirty }) {
           else toast(`Web de ${brand.name} actualizada`, 'green');
         }}
       />
+    </div>
+  );
+}
+
+// ───────────────────────── Listas editables ─────────────────────────
+
+/** Fotos de un carrusel: añadir, ordenar (arrastrar o flechas), etiquetar y quitar. */
+function PhotoListEditor({ items, onChange, off, brandId, name, testId }) {
+  const [adding, setAdding] = useState(false);
+  const dragFrom = useRef(null);
+  const move = (from, to) => {
+    if (to < 0 || to >= items.length || from === to) return;
+    const next = [...items];
+    const [it] = next.splice(from, 1);
+    next.splice(to, 0, it);
+    onChange(next);
+  };
+  return (
+    <>
+      <p className="muted small">Arrastra las fotos o usa las flechas para cambiar el orden. Hasta {MAX_GALLERY} fotos. La etiqueta se usa como texto alternativo.</p>
+      <ol className={`pz-gallery ${off ? 'is-off' : ''}`} data-testid={testId}>
+        {items.map((it, i) => (
+          <li
+            key={i}
+            draggable
+            onDragStart={() => (dragFrom.current = i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => {
+              move(dragFrom.current, i);
+              dragFrom.current = null;
+            }}
+            className="pz-gallery__item"
+          >
+            <span className="pz-gallery__num" aria-hidden="true">{i + 1}</span>
+            <ImageSlot compact imageId={it.imageId} onChange={(id) => onChange(items.map((x, j) => (j === i ? { ...x, imageId: id } : x)))} brandId={brandId} ratio="3 / 4" />
+            <Field label={`Etiqueta foto ${i + 1}`}>
+              <input value={it.label} onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+            </Field>
+            <div className="pz-gallery__tools">
+              <button type="button" className="icon-btn icon-btn--sm" disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Mover foto ${i + 1} antes`}>←</button>
+              <button type="button" className="icon-btn icon-btn--sm" disabled={i === items.length - 1} onClick={() => move(i, i + 1)} aria-label={`Mover foto ${i + 1} después`}>→</button>
+              <button type="button" className="icon-btn icon-btn--sm" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={`Quitar foto ${i + 1} de ${name}`}>✕</button>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {items.length < MAX_GALLERY ? (
+        <Button variant="secondary" size="sm" onClick={() => setAdding(true)} data-testid={`${testId}-add`}>+ Añadir foto</Button>
+      ) : (
+        <p className="muted small">Llegaste al máximo de {MAX_GALLERY} fotos.</p>
+      )}
+      {adding && <ImagePicker open onClose={() => setAdding(false)} brandId={brandId} title={`Añadir foto · ${name}`} onPick={(id) => onChange([...items, { imageId: id, label: '' }])} />}
+    </>
+  );
+}
+
+/** Lista de textos (preguntas frecuentes, avisos): título de la sección + elementos ordenables. */
+function ListEditor({ off, title, titlePlaceholder, onTitle, items, onChange, max, blank, addLabel, itemName, fields, testId }) {
+  const set = (i, patch) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const move = (from, to) => {
+    if (to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [it] = next.splice(from, 1);
+    next.splice(to, 0, it);
+    onChange(next);
+  };
+  return (
+    <div className={`form ${off ? 'is-off' : ''}`} data-testid={testId}>
+      <Field label="Título de la sección">
+        <input value={title} placeholder={titlePlaceholder} onChange={(e) => onTitle(e.target.value)} />
+      </Field>
+      {items.length === 0 && <p className="muted small">Aún no hay elementos. Sin elementos, la sección no aparece en la web.</p>}
+      <ol className="pz-list">
+        {items.map((it, i) => (
+          <li key={i} className="pz-list__item">
+            <div className="pz-list__head">
+              <strong className="small">{itemName} {i + 1}</strong>
+              <span className="pz-list__tools">
+                <button type="button" className="icon-btn icon-btn--sm" disabled={i === 0} onClick={() => move(i, i - 1)} aria-label={`Subir ${itemName.toLowerCase()} ${i + 1}`}>↑</button>
+                <button type="button" className="icon-btn icon-btn--sm" disabled={i === items.length - 1} onClick={() => move(i, i + 1)} aria-label={`Bajar ${itemName.toLowerCase()} ${i + 1}`}>↓</button>
+                <button type="button" className="icon-btn icon-btn--sm" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={`Quitar ${itemName.toLowerCase()} ${i + 1}`}>✕</button>
+              </span>
+            </div>
+            {fields.map((f) => {
+              const Input = f.multiline ? 'textarea' : 'input';
+              return (
+                <Field key={f.key} label={f.label}>
+                  <Input rows={f.multiline ? 3 : undefined} value={it[f.key] ?? ''} placeholder={f.placeholder} onChange={(e) => set(i, { [f.key]: e.target.value })} data-testid={`${testId}-${f.key}-${i}`} />
+                </Field>
+              );
+            })}
+          </li>
+        ))}
+      </ol>
+      {items.length < max && (
+        <div>
+          <Button variant="secondary" size="sm" onClick={() => onChange([...items, { ...blank }])} data-testid={`${testId}-add`}>{addLabel}</Button>
+        </div>
+      )}
     </div>
   );
 }

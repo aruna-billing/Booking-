@@ -1,3 +1,4 @@
+import { RulesEditor } from '../../components/admin/RulesEditor.jsx';
 import { LIVE } from '../../lib/mode.js';
 import { GoogleCalendarCard } from '../../components/admin/GoogleCalendarCard.jsx';
 import { useState } from 'react';
@@ -140,30 +141,7 @@ export function CalendarAdmin() {
             </div>
           </Card>
 
-          <Card title={`Reglas de agenda · ${brand.shortName}`}>
-            <dl className="kv">
-              <div><dt>Días de trabajo</dt><dd>{rules.workingDays.map((d) => WEEKDAYS_LONG[(d + 6) % 7]).join(', ')}</dd></div>
-              {rules.mode === 'timed' ? (
-                <>
-                  <div><dt>Horario</dt><dd>{formatTime(rules.openTime)} – {formatTime(rules.closeTime)}</dd></div>
-                  <div><dt>Inicios cada</dt><dd>{rules.startStepMin} min, según la duración de cada sesión</dd></div>
-                  <div><dt>Margen entre sesiones</dt><dd>{rules.bufferMin} min</dd></div>
-                  {rules.breaks?.map((b) => (
-                    <div key={b.start}><dt>Pausa</dt><dd>{b.label}: {formatTime(b.start)} – {formatTime(b.end)}</dd></div>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <div><dt>Horas de inicio</dt><dd>{rules.startTimes.map(formatTime).join(' · ')}</dd></div>
-                  <div><dt>Cobertura típica</dt><dd>{formatDuration(rules.defaultDurationMin)}</dd></div>
-                </>
-              )}
-              <div><dt>Máx. por día</dt><dd>{rules.maxBookingsPerDay}</dd></div>
-              <div><dt>Antelación mínima</dt><dd>{rules.minNoticeDays} días</dd></div>
-              <div><dt>Reservable hasta</dt><dd>{rules.maxAdvanceDays} días</dd></div>
-            </dl>
-            <p className="muted small">Edición de reglas: prevista para la fase con Supabase.</p>
-          </Card>
+          <RulesEditor key={`${activeBrand}-${JSON.stringify(rules)}`} brand={brand} rules={rules} />
         </div>
       </div>
     </>

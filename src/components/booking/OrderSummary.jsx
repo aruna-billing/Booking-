@@ -31,6 +31,15 @@ export function OrderSummary({ brand, plan, quote, date, time, title = 'Tu reser
                 <dd>{formatMoney(l.total, cur)}</dd>
               </div>
             ))}
+            {quote.discount > 0 && (
+              <div className="summary__row summary__row--discount" data-testid="summary-discount">
+                <dt>
+                  Descuento
+                  {quote.coupon && <span className="summary__sub">Cupón {quote.coupon.code}{quote.coupon.type === 'percent' ? ` · ${quote.coupon.value} %` : ''}</span>}
+                </dt>
+                <dd>−{formatMoney(quote.discount, cur)}</dd>
+              </div>
+            )}
             {quote.durationMin > 0 && (
               <div className="summary__row summary__row--duration">
                 <dt>

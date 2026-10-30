@@ -56,22 +56,55 @@ async function importKey(pem: string) {
 
 let tokenCache: { token: string; exp: number } | null = null;
 
+/** Por qué el secreto no sirve (o '' si está bien). Se muestra en el panel. */
+export let serviceAccountProblem = '';
+
+/**
+ * Lee la cuenta de servicio del secreto. Acepta el JSON tal cual, entre comillas,
+ * en base64, o con los saltos de línea de la clave convertidos al pegarlo.
+ */
 export function readServiceAccount() {
-  const raw = env('GOOGLE_SERVICE_ACCOUNT_JSON');
-  if (!raw) return null;
-  try {
-    const sa = JSON.parse(raw);
-    if (!sa.client_email || !sa.private_key) return null;
-    return { email: sa.client_email as string, key: (sa.private_key as string).replace(/\\n/g, '\n'), tokenUri: (sa.token_uri as string) || 'https://oauth2.googleapis.com/token' };
-  } catch {
+  let raw = env('GOOGLE_SERVICE_ACCOUNT_JSON').trim();
+  if (!raw) {
+    serviceAccountProblem = 'No existe el secreto GOOGLE_SERVICE_ACCOUNT_JSON (revisa que el nombre esté escrito exactamente así).';
     return null;
   }
+  if ((raw.startsWith("'") && raw.endsWith("'")) || (raw.startsWith('"') && raw.endsWith('"') && !raw.startsWith('"{'))) raw = raw.slice(1, -1).trim();
+  if (!raw.startsWith('{')) {
+    try {
+      const decoded = atob(raw.replace(/\s+/g, ''));
+      if (decoded.trim().startsWith('{')) raw = decoded.trim();
+    } catch {
+      /* no es base64 */
+    }
+  }
+  let email = '';
+  let key = '';
+  let tokenUri = '';
+  try {
+    const sa = JSON.parse(raw);
+    email = sa.client_email ?? '';
+    key = sa.private_key ?? '';
+    tokenUri = sa.token_uri ?? '';
+  } catch {
+    // JSON dañado al pegarlo (p. ej. saltos de línea reales dentro de la clave): se rescatan los datos.
+    email = /"client_email"\s*:\s*"([^"]+)"/.exec(raw)?.[1] ?? '';
+    key = /(-----BEGIN PRIVATE KEY-----[\s\S]*?-----END PRIVATE KEY-----)/.exec(raw)?.[1] ?? '';
+  }
+  if (!email || !key.includes('PRIVATE KEY')) {
+    serviceAccountProblem = raw.includes('"type"') || raw.includes('client_email')
+      ? 'El secreto GOOGLE_SERVICE_ACCOUNT_JSON está incompleto: pega de nuevo TODO el archivo .json, desde { hasta }.'
+      : 'El secreto GOOGLE_SERVICE_ACCOUNT_JSON no tiene el contenido del archivo .json de la cuenta de servicio (ábrelo con un editor de texto y copia todo).';
+    return null;
+  }
+  serviceAccountProblem = '';
+  return { email, key: key.replace(/\\n/g, '\n'), tokenUri: tokenUri || 'https://oauth2.googleapis.com/token' };
 }
 
 export async function googleToken(): Promise<string> {
   if (tokenCache && tokenCache.exp > Date.now() + 60_000) return tokenCache.token;
   const sa = readServiceAccount();
-  if (!sa) throw new Error('Falta o no es válido el secreto GOOGLE_SERVICE_ACCOUNT_JSON.');
+  if (!sa) throw new Error(serviceAccountProblem);
   const now = Math.floor(Date.now() / 1000);
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = b64url(JSON.stringify({ iss: sa.email, scope: SCOPE, aud: sa.tokenUri, iat: now, exp: now + 3600 }));
@@ -281,7 +314,7 @@ export async function handler(req: Request): Promise<Response> {
     if (!staff) return json({ error: 'Inicia sesión como miembro del equipo.' }, 401);
 
     if (body.action === 'status') {
-      if (!configured) return json({ configured: false, reason: !calendarId ? 'Falta el secreto GOOGLE_CALENDAR_ID.' : 'Falta o no es válido el secreto GOOGLE_SERVICE_ACCOUNT_JSON.' });
+      if (!configured) return json({ configured: false, reason: !calendarId ? 'Falta el secreto GOOGLE_CALENDAR_ID.' : serviceAccountProblem });
       const res = await gcal(`/calendars/${encodeURIComponent(calendarId)}`);
       if (!res.ok) return json({ configured: true, ok: false, reason: (await googleError(res, 'Calendario')).message, serviceAccount: readServiceAccount()?.email });
       const cal = await res.json();

@@ -1,14 +1,15 @@
+import { logoScale } from '../../lib/webConfig.js';
 // Logotipos. Si la marca tiene un logo subido (Configuración de marcas) se usa ese;
 // si no, un logotipo tipográfico provisional.
 //   · `invert` = se dibuja sobre fondo oscuro → usa `logoOnDark` si existe.
 
 /** Logo subido, eligiendo la variante según el fondo. */
-function UploadedLogo({ logo, logoOnDark, invert, name, className }) {
+function UploadedLogo({ logo, logoOnDark, invert, name, className, scale }) {
   const src = (invert && logoOnDark?.src) || logo?.src || logoOnDark?.src;
   // Si solo hay logo para fondo claro y estamos sobre fondo oscuro, se muestra sobre una placa clara.
   const needsPlate = invert && !logoOnDark?.src;
   return (
-    <span className={`logo-img ${className} ${needsPlate ? 'logo-img--plate' : ''}`}>
+    <span className={`logo-img ${className} ${needsPlate ? 'logo-img--plate' : ''}`} style={{ '--logo-scale': logoScale(scale) }}>
       <img src={src} alt={name} />
     </span>
   );
@@ -16,7 +17,7 @@ function UploadedLogo({ logo, logoOnDark, invert, name, className }) {
 
 export function BrandMark({ brand, size = 'md', invert = false }) {
   if (brand.logo?.src || brand.logoOnDark?.src) {
-    return <UploadedLogo logo={brand.logo} logoOnDark={brand.logoOnDark} invert={invert} name={brand.name} className={`brandmark brandmark--${size}`} />;
+    return <UploadedLogo logo={brand.logo} logoOnDark={brand.logoOnDark} invert={invert} name={brand.name} className={`brandmark brandmark--${size}`} scale={brand.logoScale} />;
   }
   if (brand.id === 'elian-lopez-photo') {
     return (
@@ -33,7 +34,7 @@ export function BrandMark({ brand, size = 'md', invert = false }) {
   if (brand.id !== 'aruna-visuals') {
     // Marca nueva sin logo: nombre en la tipografía de títulos de la marca.
     return (
-      <span className={`brandmark brandmark--generic brandmark--${size} ${invert ? 'is-invert' : ''}`} aria-label={brand.name}>
+      <span className={`brandmark brandmark--generic brandmark--${size} ${invert ? 'is-invert' : ''}`} aria-label={brand.name} style={brand.logoScale ? { zoom: logoScale(brand.logoScale) } : undefined}>
         <span className="brandmark__main" aria-hidden="true" style={{ fontFamily: brand.theme.fontDisplay, fontStyle: brand.theme.displayStyle }}>
           {brand.name}
         </span>
@@ -56,10 +57,10 @@ export function BrandMark({ brand, size = 'md', invert = false }) {
 /** Logo de la marca matriz (Aruna One). */
 export function OrgMark({ org, size = 'md', invert = false, withTagline = false }) {
   if (org.logo?.src || org.logoOnDark?.src) {
-    return <UploadedLogo logo={org.logo} logoOnDark={org.logoOnDark} invert={invert} name={org.name} className={`orgmark orgmark--${size}`} />;
+    return <UploadedLogo logo={org.logo} logoOnDark={org.logoOnDark} invert={invert} name={org.name} className={`orgmark orgmark--${size}`} scale={org.logoScale} />;
   }
   return (
-    <span className={`orgmark orgmark--${size} orgmark--text ${invert ? 'is-invert' : ''}`} aria-label={org.name}>
+    <span className={`orgmark orgmark--${size} orgmark--text ${invert ? 'is-invert' : ''}`} aria-label={org.name} style={org.logoScale ? { zoom: logoScale(org.logoScale) } : undefined}>
       <span className="orgmark__name" aria-hidden="true">{org.name}</span>
       {withTagline && org.tagline && <span className="orgmark__tag" aria-hidden="true">{org.tagline}</span>}
     </span>

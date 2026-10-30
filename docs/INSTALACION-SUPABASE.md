@@ -44,7 +44,7 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
    - **Marcas**: WhatsApp, correo, anticipo, plazo de entrega y logos.
    - **Planes y extras**: confirma precios y extras. Los extras vienen de ejemplo.
    - **Términos**: reemplaza el texto de ejemplo por el oficial.
-   - **Calendario**: días bloqueados. El horario de trabajo está en las reglas de la marca.
+   - **Calendario**: días y horario de trabajo, pausas y días bloqueados.
    - **Personalización**: fotos de portada, galería e imágenes de los planes.
 
 ## 5. Añadir al equipo (asistentes u otros administradores)
@@ -54,6 +54,21 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
    - **Administrador**: todo el panel.
    - **Asistente**: ve solicitudes, comprobantes y seguimientos; acepta o rechaza sesiones; marca fotos realizadas y entregas. Puede limitarse a algunas marcas.
 3. **Cambiar una contraseña.** El sitio no tiene «¿Olvidaste tu contraseña?». Hay que borrar al usuario en Supabase → Authentication → Users y crearlo de nuevo con otra contraseña. Después se vuelve a añadir en **Usuarios y roles**. Supabase no deja borrar al único administrador activo.
+
+## Al actualizar a una versión nueva
+
+Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_instalacion.sql`** completo en el SQL Editor. No borra datos y añade lo nuevo (por ejemplo, la comprobación de cupones). Si usas Google Calendar, actualiza también la función `google-calendar` con el `index.ts` nuevo.
+
+## Cupones de descuento
+
+En el panel → **Cupones**:
+- **Tipo de descuento:** porcentaje o monto fijo. Se aplica al total (plan + extras) y el anticipo se calcula ya con el descuento.
+- **Fechas:** desde y hasta qué fecha se puede usar. Cuenta el día en que el cliente envía la reserva.
+- **Usos:** cuántas reservas pueden usarlo en total y, si quieres, solo una vez por cliente (por correo). Si una reserva con cupón se cancela, ese uso se libera.
+- **Borrar:** un cupón que ya se usó no se puede borrar, solo desactivar, para no perder el historial.
+- **Mostrar el campo:** el interruptor de arriba muestra u oculta «¿Tienes un cupón?» en la web.
+
+**Seguridad:** la lista de cupones está en la configuración privada; el público nunca la ve. El navegador solo pregunta por un código concreto (`check_coupon`), con una pequeña espera para frenar a quien intente adivinar códigos. Al enviar la reserva, el servidor vuelve a comprobar el cupón y calcula el descuento él mismo.
 
 ## Qué hace el servidor (y por qué es seguro)
 

@@ -16,7 +16,7 @@ export function useBookingData(brandId) {
     const extras = db.extras.filter((e) => e.brandId === brandId && plan && extraAppliesToPlan(e, plan.id));
     // Solo cuentan extras válidos para el plan actual.
     const selection = Object.fromEntries(Object.entries(draft.extras).filter(([id]) => extras.some((e) => e.id === id)));
-    const quote = computeQuote({ plan, extras, selection, depositPercent: brand?.depositPercent });
+    const quote = computeQuote({ plan, extras, selection, depositPercent: brand?.depositPercent, coupon: draft.coupon });
     const availabilityCtx = brand
       ? { brandId, rules: db.rules[brandId], blockedDates: db.blockedDates, requests: agendaRequests(db, brandId) }
       : null;

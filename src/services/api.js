@@ -13,6 +13,8 @@ import { getDayAvailability } from '../lib/availability.js';
 import { getCurrentUser, requirePermission } from '../lib/auth.js';
 import { LIVE } from '../lib/mode.js';
 import { agendaRequests } from '../lib/busy.js';
+import { cleanRules, validateRules } from '../lib/rules.js';
+import { couponStatus, findCoupon, normalizeCode, validateCoupon } from '../lib/coupons.js';
 import * as cloud from './cloud.js';
 
 // En la demo se simula la espera de un servidor; en modo real la espera es la de verdad.
@@ -79,7 +81,15 @@ export async function createBookingRequest(draft) {
   const plan = s.plans.find((p) => p.id === draft.planId);
   if (!brand || !plan) throw new Error('Plan o marca no válidos.');
 
-  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent });
+  // Cupón: se vuelve a comprobar al enviar (fechas, usos y una vez por cliente).
+  let coupon = null;
+  if (draft.coupon?.code) {
+    const found = findCoupon(s.coupons, draft.coupon.code);
+    const st = couponStatus(found, { brandId: brand.id, today: localToday(), requests: s.requests, email: draft.details.email });
+    if (!st.ok) throw new Error(`${st.reason} Quítalo para continuar.`);
+    coupon = found;
+  }
+  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon });
 
   // Revalidación con la duración total (plan + minutos extra), como haría el servidor.
   const day = getDayAvailability(draft.date, {
@@ -151,7 +161,7 @@ async function createBookingRequestLive(draft) {
   }
 
   // Comprobación rápida con la agenda actual (el servidor vuelve a comprobarlo).
-  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent });
+  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon: draft.coupon ?? null });
   try {
     await cloud.loadBusySlots(brand.id);
   } catch {
@@ -176,6 +186,7 @@ async function createBookingRequestLive(draft) {
     client: { firstName: d.firstName.trim(), lastName: d.lastName.trim(), email: d.email.trim(), phone: d.phone.trim() },
     notes: d.notes.trim(),
     acceptedTerms: d.acceptedTerms === true,
+    couponCode: draft.coupon?.code ?? null,
     receipt: { name: receipt.name, path: receipt.path },
     inspirationFiles: d.inspirationFiles.filter((f) => f.path).map((f) => ({ name: f.name, path: f.path })),
   });
@@ -350,6 +361,16 @@ export async function toggleBlockedDate(brandId, date, reason = 'Bloqueado manua
         : [...s.blockedDates, { brandId, date, reason }],
     };
   });
+  return persistConfig();
+}
+
+/** Reglas de agenda de una marca (días, horario, pausas, límites). */
+export async function saveRules(brandId, rules) {
+  requirePermission('calendar.manage', brandId);
+  const errors = validateRules(rules);
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
+  await delay(200);
+  setState((s) => ({ ...s, rules: { ...s.rules, [brandId]: { ...cleanRules(rules), simulatedOccupancy: LIVE ? 0 : s.rules[brandId]?.simulatedOccupancy ?? 0 } } }));
   return persistConfig();
 }
 
@@ -565,6 +586,7 @@ export async function clearImageReferences(imageId) {
           hero: w.hero ? { ...w.hero, imageId: clear(w.hero.imageId), videoId: clear(w.hero.videoId ?? null) } : w.hero,
           cardImageId: clear(w.cardImageId ?? null),
           gallery: w.gallery ? { ...w.gallery, items: w.gallery.items.map((it) => ({ ...it, imageId: clear(it.imageId) })) } : w.gallery,
+          palette: w.palette ? { ...w.palette, items: (w.palette.items ?? []).filter((it) => it.imageId !== imageId) } : w.palette,
         },
       };
     }),
@@ -612,6 +634,78 @@ export async function deleteUser(id) {
   if (activeAdmins(next).length === 0) throw new Error('Debe quedar al menos un administrador activo.');
   if (LIVE) return cloud.removeStaff(id);
   setState((st) => ({ ...st, users: next }));
+}
+
+// ───────────────────────── Cupones ─────────────────────────
+
+const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/**
+ * Público: comprueba un código para una marca. Devuelve el cupón mínimo para calcular
+ * el descuento ({ code, type, value }) o lanza un error con el motivo.
+ * En modo real lo decide el servidor (check_coupon): el público nunca ve la lista.
+ */
+export async function checkCoupon(code, brandId, email) {
+  const c = normalizeCode(code);
+  if (!c) throw new Error('Escribe el código del cupón.');
+  if (LIVE) return cloud.checkCoupon(c, brandId, email);
+  await delay(300);
+  const s = getState();
+  const coupon = findCoupon(s.coupons, c);
+  if (!coupon) throw new Error('Este cupón no es válido.');
+  const st = couponStatus(coupon, { brandId, today: localToday(), requests: s.requests, email });
+  if (!st.ok) throw new Error(st.reason);
+  return { code: normalizeCode(coupon.code), type: coupon.type, value: Number(coupon.value) };
+}
+
+export async function saveCoupon(coupon) {
+  requirePermission('coupons.manage');
+  const s = getState();
+  const errors = validateCoupon(coupon, s.coupons);
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
+  await delay(200);
+  const clean = {
+    ...coupon,
+    code: normalizeCode(coupon.code),
+    description: (coupon.description ?? '').trim(),
+    value: Number(coupon.value),
+    maxUses: coupon.maxUses === '' || coupon.maxUses == null ? null : Number(coupon.maxUses),
+    validFrom: coupon.validFrom || '',
+    validTo: coupon.validTo || '',
+    onePerClient: Boolean(coupon.onePerClient),
+    active: coupon.active !== false,
+  };
+  setState((st) => {
+    const list = st.coupons ?? [];
+    const exists = list.some((c) => c.id === clean.id);
+    return { ...st, coupons: exists ? list.map((c) => (c.id === clean.id ? clean : c)) : [...list, clean] };
+  });
+  return persistConfig();
+}
+
+/** Mostrar u ocultar en la web el campo «¿Tienes un cupón?». */
+export async function setCouponFieldVisible(show) {
+  requirePermission('coupons.manage');
+  await delay(150);
+  setState((s) => ({ ...s, organization: { ...s.organization, showCouponField: Boolean(show) } }));
+  return persistConfig();
+}
+
+/** Borra un cupón. Si ya se usó en alguna reserva, solo se puede desactivar. */
+export async function deleteCoupon(id) {
+  requirePermission('coupons.manage');
+  const s = getState();
+  const c = s.coupons.find((x) => x.id === id);
+  if (!c) return true;
+  if (s.requests.some((r) => normalizeCode(r.quote?.coupon?.code) === normalizeCode(c.code))) {
+    throw new Error('Este cupón ya se usó en reservas: desactívalo en lugar de borrarlo.');
+  }
+  await delay(150);
+  setState((st) => ({ ...st, coupons: st.coupons.filter((x) => x.id !== id) }));
+  return persistConfig();
 }
 
 // ───────────────────────── Seguimientos ─────────────────────────

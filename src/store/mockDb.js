@@ -13,6 +13,7 @@ import { bankAccounts } from '../data/bankAccounts.js';
 import { terms } from '../data/terms.js';
 import { availabilityRules, blockedDateOffsets } from '../data/availabilityRules.js';
 import { buildDemoRequests } from '../data/demoRequests.js';
+import { demoCoupons } from '../data/coupons.js';
 import { addDays, toISODate, today } from '../lib/date.js';
 import { LIVE } from '../lib/mode.js';
 
@@ -33,6 +34,7 @@ function buildInitialState() {
     rules: structuredClone(availabilityRules),
     blockedDates,
     requests: buildDemoRequests(),
+    coupons: structuredClone(demoCoupons),
     builtOn: toISODate(today()),
   };
 }
@@ -50,6 +52,7 @@ function buildLiveState() {
     rules: {},
     blockedDates: [],
     requests: [],
+    coupons: [], // solo los administradores los cargan (configuración privada)
     busy: {}, // { [brandId]: [{ date, time, durationMin }] } horarios ocupados (sin datos personales)
     builtOn: null,
   };
@@ -77,6 +80,7 @@ export function buildFirstSetup() {
     plans: structuredClone(plans),
     extras: structuredClone(extras),
     bankAccounts: [],
+    coupons: [],
     terms: termsLive,
     rules,
     blockedDates: [],
@@ -90,7 +94,9 @@ function load() {
     if (raw) {
       const parsed = JSON.parse(raw);
       // Las fechas demo son relativas: si cambió el día, se regeneran.
-      if (parsed?.builtOn === toISODate(today())) return parsed.users ? parsed : { ...parsed, users: structuredClone(users) };
+      if (parsed?.builtOn === toISODate(today())) {
+        return { ...parsed, users: parsed.users ?? structuredClone(users), coupons: parsed.coupons ?? structuredClone(demoCoupons) };
+      }
     }
   } catch {
     /* almacenamiento no disponible: se trabaja solo en memoria */
