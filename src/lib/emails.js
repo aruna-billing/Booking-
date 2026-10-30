@@ -1,0 +1,116 @@
+// Correos automáticos al cliente: textos por defecto, variables y armado del mensaje.
+// La función de Supabase «booking-emails» usa las mismas reglas (ver su index.ts);
+// esta copia sirve para la vista previa del panel.
+//
+// Se guardan en brand.web.emails = { review: { enabled, subject, body }, confirmed: {...} }.
+// Asunto o mensaje vacíos = el texto por defecto.
+
+import { isEventBrand } from '../data/brands.js';
+import { formatMoney } from './format.js';
+import { formatLongDate, formatTime } from './date.js';
+
+export const EMAIL_KINDS = [
+  { key: 'review', label: 'Reserva en revisión', when: 'Se envía al cliente en cuanto envía su solicitud.' },
+  { key: 'confirmed', label: 'Reserva confirmada', when: 'Se envía cuando el equipo acepta la sesión o verifica el pago y confirma.' },
+];
+
+export const EMAIL_VARS = [
+  ['nombre', 'Nombre del cliente'],
+  ['apellido', 'Apellido'],
+  ['marca', 'Nombre de la marca'],
+  ['plan', 'Plan elegido'],
+  ['fecha', 'Fecha (ej.: sábado, 14 de noviembre de 2026)'],
+  ['hora', 'Hora de inicio'],
+  ['total', 'Total de la reserva'],
+  ['anticipo', 'Anticipo'],
+  ['saldo', 'Saldo pendiente'],
+  ['solicitud', 'Número de solicitud'],
+  ['whatsapp', 'WhatsApp de la marca'],
+];
+
+export function defaultEmail(kind, brand) {
+  const ev = isEventBrand(brand);
+  const what = ev ? 'tu fecha' : 'tu sesión';
+  if (kind === 'confirmed') {
+    return {
+      subject: '¡Tu reserva está confirmada! · {marca}',
+      body: `Hola {nombre}:
+
+¡Buenas noticias! Verificamos tu pago y ${what} quedó confirmada.
+
+· Plan: {plan}
+· Fecha: {fecha}, a las {hora}
+· Saldo pendiente: {saldo} (se paga el día ${ev ? 'del evento' : 'de la sesión'})
+
+Si necesitas cambiar algo, responde a este correo o escríbenos por WhatsApp: {whatsapp}.
+
+¡Nos vemos pronto!
+{marca}`,
+    };
+  }
+  return {
+    subject: 'Recibimos tu solicitud · {marca}',
+    body: `Hola {nombre}:
+
+¡Gracias por tu interés! Recibimos tu solicitud y tu comprobante de pago. Tu reserva está en revisión: en cuanto verifiquemos el pago te confirmaremos ${what}.
+
+· Plan: {plan}
+· Fecha solicitada: {fecha}, a las {hora}
+· Total: {total} · Anticipo enviado: {anticipo}
+· Número de solicitud: {solicitud}
+
+Te contactaremos mediante WhatsApp. Si tienes alguna duda, responde a este correo.
+
+{marca}`,
+  };
+}
+
+/** Plantilla efectiva (lo guardado o, si está vacío, lo predeterminado). */
+export function emailTemplate(brand, kind) {
+  const saved = brand.web?.emails?.[kind] ?? {};
+  const def = defaultEmail(kind, brand);
+  return {
+    enabled: saved.enabled !== false,
+    subject: saved.subject?.trim() ? saved.subject : def.subject,
+    body: saved.body?.trim() ? saved.body : def.body,
+  };
+}
+
+/** Valores de las variables para una solicitud. */
+export function emailVars(r, brand) {
+  const cur = r.currency || brand.currency;
+  return {
+    nombre: r.client?.firstName ?? '',
+    apellido: r.client?.lastName ?? '',
+    marca: brand.name,
+    plan: r.planName ?? '',
+    fecha: r.date ? formatLongDate(r.date) : '',
+    hora: r.time ? formatTime(r.time) : '',
+    total: formatMoney(r.quote?.total ?? 0, cur),
+    anticipo: formatMoney(r.quote?.deposit ?? 0, cur),
+    saldo: formatMoney(r.quote?.balance ?? 0, cur),
+    solicitud: String(r.id ?? '').replace(/^req-/, ''),
+    whatsapp: brand.whatsappDisplay || '—',
+  };
+}
+
+/** Reemplaza {variable} por su valor (las desconocidas quedan como están). */
+export const fillTemplate = (text, vars) => String(text ?? '').replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+
+/** Solicitud de ejemplo para la vista previa y el correo de prueba. */
+export function sampleRequest(brand, plan) {
+  const d = new Date();
+  d.setDate(d.getDate() + 21);
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const price = plan?.price ?? 5000;
+  const deposit = Math.round((price * (brand.depositPercent ?? 50)) / 100);
+  return {
+    id: 'req-1234',
+    client: { firstName: 'Ana', lastName: 'Pérez', email: 'ana@correo.com', phone: '' },
+    planName: plan?.name ?? 'Plan',
+    date: iso,
+    time: isEventBrand(brand) ? '15:00' : '10:00',
+    currency: brand.currency,
+    quote: { total: price, deposit, balance: price - deposit },
+  };
+}

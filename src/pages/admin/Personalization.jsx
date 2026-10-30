@@ -1,3 +1,4 @@
+import { EmailEditor } from '../../components/admin/EmailEditor.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
@@ -418,6 +419,16 @@ function BrandWebEditor({ brand, plans, onDirty }) {
           })}
         </div>
       </Card>
+
+      {/* 10. Correos */}
+      <EmailEditor
+        number={10}
+        brand={brand}
+        plan={plans.find((p) => p.active) ?? plans[0]}
+        value={d.web.emails}
+        onChange={(emails) => setWeb({ emails })}
+        dirty={dirty}
+      />
 
       <SaveBar
         dirty={dirty}

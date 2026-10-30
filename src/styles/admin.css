@@ -1219,3 +1219,17 @@
 .badge-picker__text { flex: 1; }
 .badge-picker__text input { width: 100%; }
 .badge-picker__preview { margin: 8px 0 0; }
+
+/* Correos al cliente */
+.email-editor__grid { display: grid; gap: 20px; margin-top: 12px; }
+@media (min-width: 980px) { .email-editor__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.email-editor textarea { font-family: inherit; line-height: 1.5; }
+.email-editor__vars summary { cursor: pointer; font-size: .875rem; }
+.email-editor__vars ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: .8125rem; }
+.email-preview { border: 1px solid var(--line, #dad7d2); background: #f4f2ee; padding: 12px; }
+.email-preview.is-off { opacity: .45; }
+.email-preview__subject { margin: 0 0 10px; font-weight: 600; overflow-wrap: anywhere; }
+.email-preview__body { background: #fff; border-top: 4px solid #111; padding: 16px 18px; font-size: .9rem; overflow-wrap: anywhere; }
+.email-preview__body p { margin: 0 0 12px; line-height: 1.55; }
+.email-editor__test { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 12px; }
+.email-editor__test .field { flex: 1 1 220px; }

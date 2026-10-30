@@ -7,7 +7,7 @@ Sistema de reservas de bodas y seguimiento de clientes para **Elian López Photo
 
 👉 **Pasos para ponerlo en marcha: [`docs/INSTALACION-SUPABASE.md`](docs/INSTALACION-SUPABASE.md)**
 
-> **Google Calendar** se conecta aparte, siguiendo [`docs/GOOGLE-CALENDAR.md`](docs/GOOGLE-CALENDAR.md). WhatsApp y los correos automáticos **no** están conectados. El cliente paga por transferencia y adjunta el comprobante; no hay pagos con tarjeta.
+> **Google Calendar** se conecta aparte, siguiendo [`docs/GOOGLE-CALENDAR.md`](docs/GOOGLE-CALENDAR.md). Los **correos al cliente** (reserva en revisión y confirmada) se activan con [`docs/CORREOS.md`](docs/CORREOS.md). WhatsApp **no** está conectado. El cliente paga por transferencia y adjunta el comprobante; no hay pagos con tarjeta.
 
 ## Iniciar en local
 

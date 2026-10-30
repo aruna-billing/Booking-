@@ -84,7 +84,7 @@ En el panel → **Cupones**:
 
 ## Límites conocidos
 
-- **Sin notificaciones:** no hay correos ni WhatsApp automáticos. El panel se actualiza solo (tiempo real, y si falla, cada 2 minutos y al volver a la pestaña), pero alguien debe revisarlo.
+- **Avisos:** el cliente recibe correos automáticos si se configura [`CORREOS.md`](CORREOS.md). El equipo no recibe correo de las reservas nuevas: el panel se actualiza solo (tiempo real, y si falla, cada 2 minutos y al volver a la pestaña), pero alguien debe revisarlo. WhatsApp no está conectado.
 - **Google Calendar:** es opcional y se conecta con [`GOOGLE-CALENDAR.md`](GOOGLE-CALENDAR.md). Sin él, la agenda que ve el cliente sale solo de las reservas activas y los días bloqueados en el panel.
 - **Archivos sin uso:** si un cliente sube un comprobante y no termina la reserva, el archivo queda en `receipts/incoming/` sin solicitud. Puedes borrarlos de vez en cuando desde Storage.
 - **Configuración compartida:** si dos administradores editan la configuración a la vez, se guarda el último cambio.

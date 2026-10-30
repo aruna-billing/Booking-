@@ -58,6 +58,8 @@ export function getWeb(brand) {
     // Preguntas frecuentes y avisos, debajo de los planes. Sin elementos no se muestran.
     faq: { show: true, title: 'Preguntas frecuentes', items: [], ...(w.faq ?? {}) },
     notices: { show: true, title: 'Avisos', items: [], ...(w.notices ?? {}) },
+    // Correos automáticos al cliente (ver lib/emails.js). Vacío = textos por defecto.
+    emails: { ...(w.emails ?? {}) },
     cardImageId: w.cardImageId ?? null,
     texts: { ...(w.texts ?? {}) },
     // Tipografía de la sección de planes. family = null → la de la marca.

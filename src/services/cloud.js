@@ -260,6 +260,20 @@ export async function loadCalendarBusy(from, to) {
   return data?.blocks ?? [];
 }
 
+/** Admin: envía un correo de prueba con la función booking-emails (usa los textos guardados). */
+export async function sendTestEmail(brandId, kind, to) {
+  const { data, error } = await supabase.functions.invoke('booking-emails', { body: { action: 'test', brandId, kind, to } });
+  if (!error) return data;
+  if (error.context?.status === 404) throw new Error('La función booking-emails no está desplegada (ver docs/CORREOS.md).');
+  let msg = '';
+  try {
+    msg = (await error.context?.json?.())?.error ?? '';
+  } catch {
+    /* sin cuerpo */
+  }
+  throw new Error(msg || friendlyError(error, 'No se pudo enviar el correo de prueba.'));
+}
+
 /** Equipo: ¿está conectado Google Calendar? */
 export async function checkCalendar() {
   try {
