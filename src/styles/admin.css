@@ -1164,3 +1164,10 @@
 @keyframes pf-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .private-file.is-loading { animation: none; } }
 .receipt__file { width: min(100%, 220px); }
+
+/* Google Calendar */
+.gcal-card { margin-bottom: 20px; }
+.gcal-card p { margin: 0 0 8px; }
+.gcal-card__list { margin: 0 0 12px; padding-left: 1.1rem; display: grid; gap: 4px; }
+.gcal-card__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.gcal-card__email { overflow-wrap: anywhere; }

@@ -58,7 +58,10 @@ async function updateRequest(id, patch, historyLabel) {
         : r
     ),
   }));
-  if (LIVE) await cloud.saveRequest(id);
+  if (LIVE) {
+    await cloud.saveRequest(id);
+    cloud.queueCalendarSync(id); // Google Calendar, si está conectado (no bloquea)
+  }
 }
 
 // ───────────────────────── Público ─────────────────────────

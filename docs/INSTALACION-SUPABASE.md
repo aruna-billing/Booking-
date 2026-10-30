@@ -1,6 +1,6 @@
 # Poner en marcha Morel Booking con Supabase
 
-Tiempo aproximado: 20 minutos. Proyecto de Supabase: `kjrzhphcvrbpdoqmmtcu`.
+Tiempo aproximado: 20 minutos. Proyecto de Supabase: `kbjlbdgxumbfnqqbqhvd`.
 
 ## 1. Crear la base de datos (una sola vez)
 
@@ -28,8 +28,8 @@ El proyecto es un sitio estático (Vite). Sirve cualquier hosting: Cloudflare Pa
 **Variables de entorno.** El archivo `.env` ya trae los datos de tu proyecto, y el build los usa si lo subes junto con el código. Si tu hosting no lo recibe, añádelas en su panel (en Cloudflare Pages: *Settings → Environment variables*) y vuelve a publicar:
 
 ```
-VITE_SUPABASE_URL=https://kjrzhphcvrbpdoqmmtcu.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_TPyrvmNqKJ66o6NvwxVirA_RkEalA9m
+VITE_SUPABASE_URL=https://kbjlbdgxumbfnqqbqhvd.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_0bhSMekq1C22HGHouy5Fzg_u0BHXcCR
 ```
 
 La clave *publishable* es pública por diseño: va dentro de la web y cualquiera puede verla. Lo que protege los datos son las reglas (RLS) del paso 1. **Nunca** pongas en el proyecto la clave *secret* ni la *service_role*.
@@ -70,7 +70,7 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
 ## Límites conocidos
 
 - **Sin notificaciones:** no hay correos ni WhatsApp automáticos. El panel se actualiza solo (tiempo real, y si falla, cada 2 minutos y al volver a la pestaña), pero alguien debe revisarlo.
-- **Sin Google Calendar:** la agenda que ve el cliente sale de las reservas activas y los días bloqueados en el panel.
+- **Google Calendar:** es opcional y se conecta con [`GOOGLE-CALENDAR.md`](GOOGLE-CALENDAR.md). Sin él, la agenda que ve el cliente sale solo de las reservas activas y los días bloqueados en el panel.
 - **Archivos sin uso:** si un cliente sube un comprobante y no termina la reserva, el archivo queda en `receipts/incoming/` sin solicitud. Puedes borrarlos de vez en cuando desde Storage.
 - **Configuración compartida:** si dos administradores editan la configuración a la vez, se guarda el último cambio.
 - **Permisos de asistente:** la base de datos impide que un asistente cambie la configuración. Dentro de una solicitud de sus marcas, en cambio, la pantalla limita lo que puede hacer, pero la base de datos le deja editarla completa.

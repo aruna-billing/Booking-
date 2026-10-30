@@ -1,3 +1,5 @@
+import { LIVE } from '../../lib/mode.js';
+import { GoogleCalendarCard } from '../../components/admin/GoogleCalendarCard.jsx';
 import { useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
@@ -62,9 +64,13 @@ export function CalendarAdmin() {
   return (
     <>
       <PageHeader title="Calendario y disponibilidad" description="Reservas por día, bloqueos manuales y reglas de agenda de cada marca." />
-      <DemoNotice compact live="Sin conexión con Google Calendar. El cliente ve como ocupados los horarios de las reservas activas (no canceladas) y los días bloqueados.">
-        Sin conexión con Google Calendar. La ocupación que ve el cliente combina estas reservas, los bloqueos y una ocupación simulada.
-      </DemoNotice>
+      {LIVE ? (
+        <GoogleCalendarCard />
+      ) : (
+        <DemoNotice compact>
+          Sin conexión con Google Calendar. La ocupación que ve el cliente combina estas reservas, los bloqueos y una ocupación simulada.
+        </DemoNotice>
+      )}
 
       {brandFilter === 'all' && (
         <div className="tabs" role="tablist" aria-label="Marca">

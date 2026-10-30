@@ -7,7 +7,7 @@ Sistema de reservas y seguimiento de clientes para **Morel Estudio** (marca de *
 
 👉 **Pasos para ponerlo en marcha: [`docs/INSTALACION-SUPABASE.md`](docs/INSTALACION-SUPABASE.md)**
 
-> Google Calendar, WhatsApp y los correos automáticos **no** están conectados. El cliente paga por transferencia y adjunta el comprobante; no hay pagos con tarjeta.
+> **Google Calendar** se conecta aparte, siguiendo [`docs/GOOGLE-CALENDAR.md`](docs/GOOGLE-CALENDAR.md). WhatsApp y los correos automáticos **no** están conectados. El cliente paga por transferencia y adjunta el comprobante; no hay pagos con tarjeta.
 
 ## Iniciar en local
 

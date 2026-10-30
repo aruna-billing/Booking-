@@ -202,15 +202,82 @@ export async function createRequest(input) {
   return data;
 }
 
-/** Público: horarios ocupados de una marca (sin datos personales). */
+/**
+ * Público: horarios ocupados de una marca (sin datos personales).
+ * Suma las reservas activas y, si Google Calendar está conectado, las horas
+ * ocupadas en ese calendario. Si Google falla, se sigue solo con las reservas.
+ */
 export async function loadBusySlots(brandId) {
   const from = toISODate(today());
   const to = toISODate(addDays(today(), 400));
-  const { data, error } = await supabase.rpc('get_busy_slots', { p_brand: brandId, p_from: from, p_to: to });
-  if (error) throw fail(error, 'No se pudo consultar la agenda.');
-  const list = (data ?? []).map((r) => ({ date: r.slot_date, time: r.slot_time, durationMin: r.duration_min }));
+  const ahead = Math.min(400, Math.max(30, Number(getState().rules?.[brandId]?.maxAdvanceDays) || 120));
+  const [db, google] = await Promise.all([
+    supabase.rpc('get_busy_slots', { p_brand: brandId, p_from: from, p_to: to }),
+    loadCalendarBusy(from, toISODate(addDays(today(), ahead))).catch(() => []),
+  ]);
+  if (db.error) throw fail(db.error, 'No se pudo consultar la agenda.');
+  const list = [
+    ...(db.data ?? []).map((r) => ({ date: r.slot_date, time: r.slot_time, durationMin: r.duration_min })),
+    ...google.map((b) => ({ ...b, source: 'google' })),
+  ];
   setState((s) => ({ ...s, busy: { ...(s.busy ?? {}), [brandId]: list } }));
   return list;
+}
+
+// ───────────────────────── Google Calendar (función google-calendar) ─────────────────────────
+
+let calendar = { checked: false, active: false, info: null };
+export const getCalendarState = () => calendar;
+
+/** Llama a la función. Devuelve { data } o lanza un error con el mensaje de la función. */
+async function invokeCalendar(body) {
+  const { data, error } = await supabase.functions.invoke('google-calendar', { body });
+  if (!error) return data;
+  let msg = '';
+  try {
+    msg = (await error.context?.json?.())?.error ?? '';
+  } catch {
+    /* sin cuerpo */
+  }
+  const e = new Error(msg || friendlyError(error, 'No se pudo contactar con Google Calendar.'));
+  e.status = error.context?.status ?? 0;
+  throw e;
+}
+
+/** Horas ocupadas en Google entre dos fechas: [{ date, time, durationMin }]. */
+export async function loadCalendarBusy(from, to) {
+  const data = await invokeCalendar({ action: 'busy', from, to });
+  return data?.blocks ?? [];
+}
+
+/** Equipo: ¿está conectado Google Calendar? */
+export async function checkCalendar() {
+  try {
+    const info = await invokeCalendar({ action: 'status' });
+    calendar = { checked: true, active: Boolean(info?.configured && info?.ok), info };
+  } catch (e) {
+    // Función no desplegada o sin acceso: se considera «no conectado» sin molestar.
+    calendar = { checked: true, active: false, info: { configured: false, reason: e.status === 404 ? 'La función google-calendar no está desplegada.' : e.message } };
+  }
+  setCloudStatus({ calendar: calendar.info });
+  return calendar;
+}
+
+/** Equipo: actualiza en Google los eventos de estas solicitudes. Lanza error si alguna falla. */
+export async function syncCalendar(ids) {
+  const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+  if (!list.length) return { ok: true };
+  const data = await invokeCalendar({ action: 'sync', requestIds: list });
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+/** Tras cambiar una solicitud: sincroniza en segundo plano y avisa en el panel si falla. */
+export function queueCalendarSync(id) {
+  if (!calendar.active) return;
+  syncCalendar(id).catch((e) => {
+    setCloudStatus({ saveError: `Google Calendar: ${e.message}`, saveErrorKind: 'calendar', saveErrorId: id });
+  });
 }
 
 // ───────────────────────── Archivos del cliente ─────────────────────────
@@ -298,6 +365,7 @@ export async function startStaffSession(user) {
     if (user.role === 'admin') jobs.push(loadFullConfig(), loadStaff());
     await Promise.all(jobs);
     subscribeRealtime(user);
+    checkCalendar();
     // Respaldo del tiempo real: refresca al volver a la pestaña y cada 2 minutos.
     clearInterval(pollTimer);
     pollTimer = setInterval(() => document.visibilityState === 'visible' && loadRequests().catch(() => {}), 120000);
@@ -341,4 +409,5 @@ export async function retrySave() {
   const kind = getCloudStatus().saveErrorKind;
   setCloudStatus({ saveError: null });
   if (kind === 'config' && getCloudStatus().phase !== 'empty') await saveConfig();
+  if (kind === 'calendar') queueCalendarSync(getCloudStatus().saveErrorId);
 }

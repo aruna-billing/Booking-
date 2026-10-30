@@ -188,9 +188,10 @@ export function AdminLayout({ title, perm, children }) {
             {LIVE && cloud.saveError && (
               <div className="admin-banner" role="alert" data-testid="save-error">
                 <span>
-                  <strong>No se guardó el último cambio.</strong> {cloud.saveError}
+                  <strong>{cloud.saveErrorKind === 'calendar' ? 'El cambio se guardó, pero no llegó a Google Calendar.' : 'No se guardó el último cambio.'}</strong>{' '}
+                  {cloud.saveErrorKind === 'calendar' ? cloud.saveError.replace(/^Google Calendar: /, '') : cloud.saveError}
                 </span>
-                {cloud.saveErrorKind === 'config' ? (
+                {cloud.saveErrorKind === 'config' || cloud.saveErrorKind === 'calendar' ? (
                   <button type="button" className="btn btn--secondary btn--sm" onClick={() => retrySave().catch(() => {})}>
                     <span>Reintentar</span>
                   </button>
