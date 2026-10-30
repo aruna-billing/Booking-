@@ -118,37 +118,97 @@ export const fillTemplate = (text: string, vars: Record<string, string>) => Stri
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Correo en HTML sencillo con los colores de la marca (y versión de texto). */
-export function buildEmail(brand: any, kind: string, r: any) {
+// ───────────────────────── Pie: contacto y términos (mismas reglas que src/lib/emails.js) ─────────────────────────
+
+const TERMS_MODES = ['confirmed', 'both', 'none'];
+
+export function footerSettings(brand: any) {
+  const f = brand?.web?.emails?.footer ?? {};
+  return { enabled: f.enabled !== false, terms: TERMS_MODES.includes(f.terms) ? f.terms : 'confirmed' };
+}
+
+/** Logo apto para correo: Gmail y Outlook no muestran SVG ni imágenes incrustadas. */
+export function emailLogo(brand: any) {
+  const src = typeof brand?.logo?.src === 'string' ? brand.logo.src : '';
+  if (!src.startsWith('https://')) return '';
+  if (/\.svg(\?|#|$)/i.test(src) || /svg/i.test(brand.logo.type ?? '')) return '';
+  return src;
+}
+
+export function emailFooter(brand: any, kind: string, terms: any, r: any = {}) {
+  const s = footerSettings(brand);
+  if (!s.enabled) return null;
+  const contact = [brand.name, brand.whatsappDisplay ? `WhatsApp ${brand.whatsappDisplay}` : '', brand.email || ''].filter(Boolean);
+  const sections = (terms?.sections ?? []).filter((x: any) => String(x.title ?? '').trim() || String(x.body ?? '').trim());
+  const version = r.acceptedTermsVersion || terms?.version || '';
+  const accepted = sections.length ? `Al enviar tu solicitud aceptaste los términos y condiciones${version ? ` (versión ${version})` : ''}.` : '';
+  const full = sections.length > 0 && (s.terms === 'both' || (s.terms === 'confirmed' && kind === 'confirmed'));
+  return {
+    contact,
+    accepted,
+    terms: full ? { title: `Términos y condiciones${terms.version ? ` · versión ${terms.version}` : ''}`, sections } : null,
+  };
+}
+
+const lines = (t: string) => esc(String(t ?? '')).replace(/\n/g, '<br>');
+
+/** Correo en HTML sencillo con el logo, los colores de la marca y el pie (y versión de texto). */
+export function buildEmail(brand: any, kind: string, r: any, terms: any = null) {
   const t = emailTemplate(brand, kind);
   const vars = emailVars(r, brand);
   const subject = fillTemplate(t.subject, vars).replace(/[\r\n]+/g, ' ').slice(0, 200);
-  const text = fillTemplate(t.body, vars);
+  const body = fillTemplate(t.body, vars);
   const theme = brand.theme ?? {};
   const ink = /^#[0-9a-f]{3,8}$/i.test(theme.ink ?? '') ? theme.ink : '#111111';
   const accent = /^#[0-9a-f]{3,8}$/i.test(theme.accent ?? '') ? theme.accent : '#111111';
-  const logo = typeof brand.logo?.src === 'string' && brand.logo.src.startsWith('https://') ? brand.logo.src : '';
-  const paragraphs = text
+  const logo = emailLogo(brand);
+  const foot = emailFooter(brand, kind, terms, r);
+  const paragraphs = body
     .split(/\n{2,}/)
-    .map((p) => `<p style="margin:0 0 16px;line-height:1.55">${esc(p).replace(/\n/g, '<br>')}</p>`)
+    .map((p) => `<p style="margin:0 0 16px;line-height:1.55">${lines(p)}</p>`)
     .join('');
+  const header = logo
+    ? `<img src="${esc(logo)}" alt="${esc(brand.name)}" width="180" style="display:block;width:auto;max-width:180px;max-height:64px;height:auto;border:0">`
+    : `<strong style="font-size:20px;letter-spacing:.02em">${esc(brand.name)}</strong>`;
+  const termsHtml = foot?.terms
+    ? `<tr><td style="padding:20px 28px 24px;border-top:1px solid #e6e2db;font-size:12px;line-height:1.5;color:#5c5852">
+<p style="margin:0 0 10px;font-size:13px;font-weight:bold;color:${ink}">${esc(foot.terms.title)}</p>
+${foot.terms.sections.map((x: any) => `<p style="margin:0 0 8px">${x.title ? `<strong>${esc(x.title)}.</strong> ` : ''}${lines(x.body)}</p>`).join('')}
+</td></tr>`
+    : '';
   const html = `<!doctype html><html lang="es"><body style="margin:0;padding:24px 12px;background:#f4f2ee;font-family:Helvetica,Arial,sans-serif;color:${ink}">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-top:4px solid ${accent}" cellspacing="0" cellpadding="0">
-<tr><td style="padding:28px 28px 8px">${logo ? `<img src="${esc(logo)}" alt="${esc(brand.name)}" height="40" style="display:block;height:40px;width:auto">` : `<strong style="font-size:18px">${esc(brand.name)}</strong>`}</td></tr>
+<tr><td style="padding:28px 28px 8px">${header}</td></tr>
 <tr><td style="padding:16px 28px 12px;font-size:15px">${paragraphs}</td></tr>
+${termsHtml}
 </table>
-<p style="font-size:12px;color:#77736b;margin:16px 0 0">${esc(brand.name)}${brand.email ? ` · ${esc(brand.email)}` : ''}</p>
+<table role="presentation" width="100%" style="max-width:560px" cellspacing="0" cellpadding="0"><tr><td style="padding:16px 28px 0;font-size:12px;line-height:1.5;color:#77736b;text-align:center">
+${foot ? `<p style="margin:0 0 6px">${foot.contact.map(esc).join(' · ')}</p>${foot.accepted ? `<p style="margin:0">${esc(foot.accepted)}</p>` : ''}` : `<p style="margin:0">${esc(brand.name)}${brand.email ? ` · ${esc(brand.email)}` : ''}</p>`}
+</td></tr></table>
 </td></tr></table></body></html>`;
-  return { subject, text, html, enabled: t.enabled };
+  const textFoot = foot
+    ? [
+        '',
+        '',
+        '—',
+        foot.contact.join(' · '),
+        ...(foot.accepted ? [foot.accepted] : []),
+        ...(foot.terms ? ['', foot.terms.title, ...foot.terms.sections.map((x: any) => `${x.title ? `${x.title}. ` : ''}${x.body}`)] : []),
+      ].join('\n')
+    : '';
+  return { subject, text: body + textFoot, html, enabled: t.enabled };
 }
 
 // ───────────────────────── Envío ─────────────────────────
 
 export async function sendEmail({ to, subject, html, text, fromName, replyTo }: { to: string; subject: string; html: string; text: string; fromName: string; replyTo?: string }) {
   const key = env('RESEND_API_KEY');
-  const from = env('EMAIL_FROM');
-  if (!key || !from) throw new Error('Faltan los secretos RESEND_API_KEY o EMAIL_FROM.');
+  const rawFrom = env('EMAIL_FROM');
+  if (!key || !rawFrom) throw new Error('Faltan los secretos RESEND_API_KEY o EMAIL_FROM.');
+  // Acepta «reservas@dominio.com», «Nombre <reservas@dominio.com>», con comillas o espacios de más.
+  const from = rawFrom.match(/[^\s<>"'`]+@[^\s<>"'`]+\.[a-z]{2,}/i)?.[0];
+  if (!from) throw new Error(`El secreto EMAIL_FROM no es un correo válido. Debe ser solo la dirección, p. ej. reservas@tudominio.com.`);
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
@@ -220,7 +280,7 @@ export async function handler(req: Request): Promise<Response> {
       const price = plan?.price ?? 5000;
       const deposit = Math.round((price * (brand.depositPercent ?? 50)) / 100);
       const sample = { id: 'req-1234', client: { firstName: 'Ana', lastName: 'Pérez' }, planName: plan?.name ?? 'Plan', date: new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10), time: isEvent(brand) ? '15:00' : '10:00', currency: brand.currency, quote: { total: price, deposit, balance: price - deposit } };
-      const msg = buildEmail(brand, kind, sample);
+      const msg = buildEmail(brand, kind, { ...sample, acceptedTermsVersion: cfg.terms?.[brand.id]?.version }, cfg.terms?.[brand.id]);
       const id = await sendEmail({ to, subject: `[Prueba] ${msg.subject}`, html: msg.html, text: msg.text, fromName: brand.name, replyTo: brand.email || undefined });
       return json({ ok: true, id });
     }
@@ -237,7 +297,7 @@ export async function handler(req: Request): Promise<Response> {
     const cfg = await loadConfig(req);
     const brand = (cfg.brands ?? []).find((b: any) => b.id === r.brandId);
     if (!brand) return json({ skipped: 'marca no encontrada' });
-    const msg = buildEmail(brand, kind, r);
+    const msg = buildEmail(brand, kind, r, cfg.terms?.[brand.id]);
     if (!msg.enabled) return json({ skipped: 'correo desactivado en el panel' });
     const id = await sendEmail({ to, subject: msg.subject, html: msg.html, text: msg.text, fromName: brand.name, replyTo: brand.email || undefined });
     return json({ ok: true, kind, id });

@@ -3,7 +3,8 @@ import { Card, Toggle } from './parts.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Field } from '../ui/Field.jsx';
 import { useToast } from '../ui/misc.jsx';
-import { EMAIL_KINDS, EMAIL_VARS, defaultEmail, emailVars, fillTemplate, sampleRequest } from '../../lib/emails.js';
+import { EMAIL_KINDS, EMAIL_VARS, TERMS_MODES, defaultEmail, emailFooter, emailLogo, emailVars, fillTemplate, footerSettings, sampleRequest } from '../../lib/emails.js';
+import { useDb } from '../../store/mockDb.js';
 import { LIVE } from '../../lib/mode.js';
 import { sendTestEmail } from '../../services/cloud.js';
 
@@ -21,6 +22,16 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
   const body = fillTemplate(saved.body?.trim() ? saved.body : def.body, vars);
   const enabled = saved.enabled !== false;
   const info = EMAIL_KINDS.find((k) => k.key === kind);
+  const terms = useDb().terms?.[brand.id];
+  const draftBrand = { ...brand, web: { ...brand.web, emails: value } };
+  const foot = footerSettings(draftBrand);
+  const setFoot = (patch) => onChange({ ...value, footer: { ...foot, ...patch } });
+  // Recién subido (aún sin guardar) el logo es un data URL: al guardar pasa a Storage.
+  const src = brand.logo?.src ?? '';
+  const isSvg = /svg/i.test(brand.logo?.type ?? '') || /^data:image\/svg|\.svg(\?|#|$)/i.test(src);
+  const logo = emailLogo(brand) || (!isSvg && src.startsWith('data:image/') ? src : '');
+  const svgLogo = !logo && isSvg;
+  const footer = emailFooter(draftBrand, kind, terms, { acceptedTermsVersion: terms?.version });
 
   const test = async () => {
     setBusy(true);
@@ -65,6 +76,25 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
               ))}
             </ul>
           </details>
+
+          <fieldset className="email-editor__footer">
+            <legend>Logo y pie (los dos correos)</legend>
+            <p className="muted small">
+              {logo
+                ? 'Arriba va el logo de la marca (Marcas → Logo).'
+                : svgLogo
+                  ? 'El logo es SVG y Gmail/Outlook no lo muestran: arriba va el nombre de la marca. Sube el logo en PNG o JPG en Marcas para que salga.'
+                  : 'Sin logo subido: arriba va el nombre de la marca. Súbelo en Marcas (PNG o JPG).'}
+            </p>
+            <Toggle checked={foot.enabled} onChange={(v) => setFoot({ enabled: v })} label={foot.enabled ? 'Pie con contacto y términos' : 'Sin pie'} />
+            {foot.enabled && (
+              <Field label="Términos en el pie" hint={terms?.sections?.length ? `Se usan los de «Términos» (versión ${terms.version}).` : 'Esta marca aún no tiene términos guardados: solo sale el contacto.'}>
+                <select value={foot.terms} onChange={(e) => setFoot({ terms: e.target.value })} data-testid="email-footer-terms">
+                  {TERMS_MODES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                </select>
+              </Field>
+            )}
+          </fieldset>
         </div>
 
         <div className="email-editor__preview" aria-label="Vista previa del correo">
@@ -72,10 +102,27 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
           <div className={`email-preview ${enabled ? '' : 'is-off'}`} data-testid="email-preview">
             <p className="email-preview__subject"><span className="muted small">Asunto:</span> {subject}</p>
             <div className="email-preview__body" style={{ borderTopColor: brand.theme?.accent }}>
+              <div className="email-preview__logo" data-testid="email-preview-logo">
+                {logo ? <img src={logo} alt={brand.name} /> : <strong>{brand.name}</strong>}
+              </div>
               {body.split(/\n{2,}/).map((p, i) => (
                 <p key={i}>{p.split('\n').map((line, j) => <span key={j}>{j > 0 && <br />}{line}</span>)}</p>
               ))}
+              {footer?.terms && (
+                <div className="email-preview__terms" data-testid="email-preview-terms">
+                  <p><strong>{footer.terms.title}</strong></p>
+                  {footer.terms.sections.map((x, i) => (
+                    <p key={i}>{x.title && <strong>{x.title}. </strong>}{x.body}</p>
+                  ))}
+                </div>
+              )}
             </div>
+            {footer && (
+              <div className="email-preview__foot" data-testid="email-preview-foot">
+                <p>{footer.contact.join(' · ')}</p>
+                {footer.accepted && <p>{footer.accepted}</p>}
+              </div>
+            )}
           </div>
           {LIVE ? (
             <div className="email-editor__test">

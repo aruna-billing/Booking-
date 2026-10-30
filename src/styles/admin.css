@@ -1241,3 +1241,15 @@
 .payments__actions { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .table--lines tr.is-charge th { font-weight: inherit; }
 .line-note { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .75rem; color: var(--muted, #5c5852); font-weight: 400; margin-top: 2px; }
+
+/* Correos: logo y pie */
+.email-editor__footer { border: 1px solid var(--line, #dad7d2); padding: 12px 14px; margin: 16px 0 0; display: grid; gap: 10px; min-width: 0; }
+.email-editor__footer legend { font-weight: 600; font-size: .875rem; padding: 0 4px; }
+.email-editor__footer p { margin: 0; }
+.email-preview__logo { margin: 0 0 14px; }
+.email-preview__logo img { display: block; max-width: 160px; max-height: 56px; width: auto; height: auto; }
+.email-preview__logo strong { font-size: 1.05rem; letter-spacing: .02em; }
+.email-preview__terms { border-top: 1px solid #e6e2db; margin: 14px -18px 0; padding: 12px 18px 0; font-size: .75rem; color: #5c5852; }
+.email-preview__terms p { margin: 0 0 8px; line-height: 1.5; }
+.email-preview__foot { text-align: center; font-size: .75rem; color: #77736b; padding: 10px 6px 2px; overflow-wrap: anywhere; }
+.email-preview__foot p { margin: 0 0 4px; }

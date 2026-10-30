@@ -114,3 +114,42 @@ export function sampleRequest(brand, plan) {
     quote: { total: price, deposit, balance: price - deposit },
   };
 }
+
+// ───────────────────────── Pie del correo: contacto y términos ─────────────────────────
+// Se guarda en brand.web.emails.footer = { enabled, terms: 'confirmed' | 'both' | 'none' }.
+// La función «booking-emails» repite estas mismas reglas.
+
+export const TERMS_MODES = [
+  ['confirmed', 'Completos solo en «Reserva confirmada»'],
+  ['both', 'Completos en los dos correos'],
+  ['none', 'Solo la línea con la versión aceptada'],
+];
+
+export function footerSettings(brand) {
+  const f = brand?.web?.emails?.footer ?? {};
+  return { enabled: f.enabled !== false, terms: TERMS_MODES.some(([k]) => k === f.terms) ? f.terms : 'confirmed' };
+}
+
+/** Logo apto para correo: Gmail y Outlook no muestran SVG ni imágenes incrustadas. */
+export function emailLogo(brand) {
+  const src = typeof brand?.logo?.src === 'string' ? brand.logo.src : '';
+  if (!src.startsWith('https://')) return '';
+  if (/\.svg(\?|#|$)/i.test(src) || /svg/i.test(brand.logo.type ?? '')) return '';
+  return src;
+}
+
+/** Contenido del pie: contacto, línea de aceptación y, según el ajuste, los términos completos. */
+export function emailFooter(brand, kind, terms, r = {}) {
+  const s = footerSettings(brand);
+  if (!s.enabled) return null;
+  const contact = [brand.name, brand.whatsappDisplay ? `WhatsApp ${brand.whatsappDisplay}` : '', brand.email || ''].filter(Boolean);
+  const sections = (terms?.sections ?? []).filter((x) => String(x.title ?? '').trim() || String(x.body ?? '').trim());
+  const version = r.acceptedTermsVersion || terms?.version || '';
+  const accepted = sections.length ? `Al enviar tu solicitud aceptaste los términos y condiciones${version ? ` (versión ${version})` : ''}.` : '';
+  const full = sections.length > 0 && (s.terms === 'both' || (s.terms === 'confirmed' && kind === 'confirmed'));
+  return {
+    contact,
+    accepted,
+    terms: full ? { title: `Términos y condiciones${terms.version ? ` · versión ${terms.version}` : ''}`, sections } : null,
+  };
+}
