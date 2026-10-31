@@ -1,17 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
-import { BrandDot, PageHeader } from '../../components/admin/parts.jsx';
-import { EmptyState, PaymentStatusBadge, RequestStatusBadge } from '../../components/ui/misc.jsx';
+import { BrandDot, ConfirmDialog, PageHeader } from '../../components/admin/parts.jsx';
+import { EmptyState, PaymentStatusBadge, RequestStatusBadge, useToast } from '../../components/ui/misc.jsx';
 import { REQUEST_STATUS, PAYMENT_STATUS } from '../../data/statuses.js';
 import { Link, navigate, usePath } from '../../lib/router.jsx';
 import { formatShortDate, formatTime, formatDateTime } from '../../lib/date.js';
 import { formatMoney, shortId } from '../../lib/format.js';
 import { balanceDue } from '../../lib/finance.js';
+import { waMessage } from '../../lib/whatsapp.js';
+import { copyText } from '../../components/admin/WhatsAppModal.jsx';
+import * as api from '../../services/api.js';
 
 export function Requests() {
   const db = useDb();
-  const { brandFilter, inScope } = useAdmin();
+  const { brandFilter, inScope, can } = useAdmin();
+  const toast = useToast();
+  const [deleting, setDeleting] = useState(null);
   const path = usePath();
   const initialStatus = new URLSearchParams(path.split('?')[1] ?? '').get('estado') ?? 'all';
   const [status, setStatus] = useState(initialStatus);
@@ -20,6 +25,10 @@ export function Requests() {
   const [sort, setSort] = useState('created');
 
   const brandOf = (id) => db.brands.find((b) => b.id === id);
+  const copyWa = async (r) => {
+    const ok = await copyText(waMessage(r, brandOf(r.brandId), db.plans.find((p) => p.id === r.planId)));
+    toast(ok ? `Mensaje de ${r.client.firstName} copiado. Pégalo en WhatsApp.` : 'No se pudo copiar. Ábrelo en el detalle.', ok ? 'green' : 'red');
+  };
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -81,7 +90,7 @@ export function Requests() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} onClick={(e) => e.target.tagName !== 'A' && navigate(`/admin/solicitudes/${r.id}`)} className="is-clickable">
+                <tr key={r.id} onClick={(e) => !e.target.closest('a, button') && navigate(`/admin/solicitudes/${r.id}`)} className="is-clickable">
                   <td data-label="Cliente">
                     <span className="cell-client">
                       <BrandDot brand={brandOf(r.brandId)} />
@@ -103,6 +112,19 @@ export function Requests() {
                   <td data-label="Solicitud"><RequestStatusBadge status={r.status} /></td>
                   <td data-label="Pago"><PaymentStatusBadge status={r.paymentStatus} /></td>
                   <td className="cell-action">
+                    <span className="row-tools">
+                      {r.status !== 'cancelled' && (
+                        <button type="button" className="row-tool row-tool--wa" onClick={() => copyWa(r)} title="Copiar mensaje de WhatsApp" aria-label={`Copiar mensaje de WhatsApp para ${r.client.firstName} ${r.client.lastName}`} data-testid="row-wa">
+                          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M9 9.5c.3 1.8 1.7 3.4 3.6 4.1l1.1-1 1.6.8c-.2 1-1 1.6-2 1.4-2.7-.5-4.9-2.6-5.4-5.3-.2-1 .4-1.8 1.4-2l.8 1.6z" fill="currentColor" /></svg>
+                          <span>WhatsApp</span>
+                        </button>
+                      )}
+                      {can('requests.delete') && (
+                        <button type="button" className="row-tool row-tool--danger" onClick={() => setDeleting(r)} title="Borrar solicitud" aria-label={`Borrar la solicitud de ${r.client.firstName} ${r.client.lastName}`} data-testid="row-delete">
+                          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        </button>
+                      )}
+                    </span>
                     <Link to={`/admin/solicitudes/${r.id}`} aria-label={`Ver detalle de ${r.client.firstName} ${r.client.lastName}`}>
                       Ver detalle →
                     </Link>
@@ -113,6 +135,22 @@ export function Requests() {
           </table>
         </div>
       )}
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Borrar solicitud"
+        message={deleting ? `Se borrará para siempre la solicitud de ${deleting.client.firstName} ${deleting.client.lastName} (${shortId(deleting.id)}), con sus pagos, notas, comprobante e imágenes. No se puede deshacer. Si solo quieres liberar la fecha, ábrela y usa «Cancelar reserva».` : ''}
+        confirmLabel="Borrar para siempre"
+        danger
+        onConfirm={async () => {
+          try {
+            await api.deleteRequest(deleting.id);
+            toast('Solicitud borrada', 'neutral');
+          } catch (e) {
+            toast(e.message, 'red');
+          }
+        }}
+      />
     </>
   );
 }

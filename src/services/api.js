@@ -242,6 +242,16 @@ export async function cancelRequest(id, reason) {
   await updateRequest(id, { status: 'cancelled' }, `Reserva cancelada${reason ? `: ${reason}` : ''}`);
 }
 
+/** Borra la solicitud para siempre (con sus pagos, notas y archivos). Solo administradores. */
+export async function deleteRequest(id) {
+  guard('requests.delete', id);
+  await delay();
+  const r = getState().requests.find((x) => x.id === id);
+  if (!r) throw new Error('La solicitud ya no existe.');
+  if (LIVE) await cloud.deleteRequest(r);
+  setState((s) => ({ ...s, requests: s.requests.filter((x) => x.id !== id) }));
+}
+
 export async function completeRequest(id) {
   guard('requests.manage', id);
   await delay();

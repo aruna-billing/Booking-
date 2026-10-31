@@ -12,6 +12,11 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   const titleId = useId();
   const panelRef = useRef(null);
   const lastFocused = useRef(null);
+  // onClose suele ser una función nueva en cada render. Guardarla en una ref evita
+  // que el efecto se repita (y robe el foco o mueva la página) cada vez que el
+  // panel se vuelve a dibujar, p. ej. al llegar datos nuevos mientras se escribe.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -23,7 +28,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current?.();
       }
       if (e.key === 'Tab' && panelRef.current) {
         const items = [...panelRef.current.querySelectorAll(FOCUSABLE)];
@@ -44,9 +49,9 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       clearTimeout(t);
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
-      lastFocused.current?.focus?.();
+      lastFocused.current?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

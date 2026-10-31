@@ -64,6 +64,8 @@ export function getWeb(brand) {
     notices: { show: true, title: 'Avisos', items: [], ...(w.notices ?? {}) },
     // Correos automáticos al cliente (ver lib/emails.js). Vacío = textos por defecto.
     emails: { ...(w.emails ?? {}) },
+    // Mensajes de WhatsApp que se copian desde el panel (ver lib/whatsapp.js).
+    whatsapp: { ...(w.whatsapp ?? {}) },
     cardImageId: w.cardImageId ?? null,
     texts: { ...(w.texts ?? {}) },
     // Tipografía de la sección de planes. family = null → la de la marca.

@@ -10,9 +10,11 @@ export const PERMISSIONS = [
   { key: 'tracking.view', label: 'Ver seguimientos (etapas de cada cliente)' },
   { key: 'tracking.update', label: 'Marcar fotos realizadas y entregas' },
   { key: 'requests.manage', label: 'Completar, reabrir o cancelar reservas y escribir notas internas' },
+  { key: 'requests.delete', label: 'Borrar solicitudes para siempre' },
   { key: 'payments.manage', label: 'Verificar, registrar y anular pagos' },
   { key: 'finance.view', label: 'Ver finanzas y cobros' },
-  { key: 'calendar.manage', label: 'Gestionar calendario y bloqueos' },
+  { key: 'calendar.view', label: 'Ver el calendario de reservas' },
+  { key: 'calendar.manage', label: 'Gestionar calendario, bloqueos y horarios' },
   { key: 'catalog.manage', label: 'Editar planes y extras' },
   { key: 'accounts.manage', label: 'Editar cuentas bancarias' },
   { key: 'web.manage', label: 'Personalizar la web' },
@@ -30,7 +32,7 @@ export const ROLES = {
   },
   assistant: {
     label: 'Asistente',
-    description: 'Ve las solicitudes, los comprobantes y los seguimientos de sus marcas; acepta o rechaza sesiones y marca fotos realizadas y entregas.',
-    permissions: ['requests.view', 'receipts.view', 'sessions.decide', 'tracking.view', 'tracking.update'],
+    description: 'Ve las solicitudes, los comprobantes, los seguimientos y el calendario (solo lectura) de sus marcas; acepta o rechaza sesiones y marca fotos realizadas y entregas.',
+    permissions: ['requests.view', 'receipts.view', 'sessions.decide', 'tracking.view', 'tracking.update', 'calendar.view'],
   },
 };

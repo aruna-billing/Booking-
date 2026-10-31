@@ -26,7 +26,7 @@ const NAV = [
   { perm: 'receipts.view', to: '/admin/comprobantes', label: 'Comprobantes', icon: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13l2 2 4-4', badge: 'receipts' },
   { perm: 'tracking.view', to: '/admin/seguimientos', label: 'Seguimientos', icon: 'M4 6h3M4 12h3M4 18h3M10 6h10M10 12h10M10 18h10M5.5 4.5v15', badge: 'tracking' },
   { perm: 'finance.view', to: '/admin/finanzas', label: 'Finanzas', icon: 'M3 6h18v12H3zM3 10h18M7 15h4M16 15h1' },
-  { perm: 'calendar.manage', to: '/admin/calendario', label: 'Calendario', icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4' },
+  { perm: 'calendar.view', to: '/admin/calendario', label: 'Calendario', icon: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4' },
   { perm: 'catalog.manage', to: '/admin/catalogo', label: 'Planes y extras', icon: 'M4 7l8-4 8 4-8 4zM4 12l8 4 8-4M4 17l8 4 8-4' },
   { perm: 'coupons.manage', to: '/admin/cupones', label: 'Cupones', icon: 'M3 9V6a1 1 0 011-1h16a1 1 0 011 1v3a3 3 0 000 6v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3a3 3 0 000-6zM9 15l6-6M9.5 9.5h.01M14.5 14.5h.01' },
   { perm: 'accounts.manage', to: '/admin/cuentas', label: 'Cuentas bancarias', icon: 'M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18' },

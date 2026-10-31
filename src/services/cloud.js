@@ -198,6 +198,40 @@ async function reloadRequest(id) {
 }
 
 /** Público: crea la solicitud en el servidor (recalcula precio y comprueba el horario). */
+/** Rutas de archivos privados (comprobantes e inspiración) de una solicitud. */
+function requestFilePaths(r) {
+  const out = new Set();
+  const walk = (v) => {
+    if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') {
+      if (typeof v.path === 'string' && v.path.startsWith('incoming/')) out.add(v.path);
+      Object.values(v).forEach(walk);
+    }
+  };
+  walk(r);
+  return [...out];
+}
+
+/** Admin: borra la solicitud, su evento de Google Calendar y sus archivos. */
+export async function deleteRequest(r) {
+  // 1) Quitar el evento de Google Calendar (si lo hay): se marca cancelada y se sincroniza.
+  if (calendar.active && ['confirmed', 'completed'].includes(r.status)) {
+    try {
+      const { data } = await supabase.from('booking_requests').update({ payload: { ...r, status: 'cancelled' } }).eq('id', r.id).select('id');
+      if (data?.length) await syncCalendar(r.id);
+    } catch {
+      /* si falla, el evento queda en Google y se puede borrar a mano */
+    }
+  }
+  // 2) Borrar la fila.
+  const { data, error } = await supabase.from('booking_requests').delete().eq('id', r.id).select('id');
+  if (error) throw fail(error, 'No se pudo borrar la solicitud.');
+  if (!data?.length) throw new Error('No se pudo borrar: solo un administrador puede borrar solicitudes.');
+  // 3) Borrar comprobantes e imágenes (si falla, quedan huérfanos sin afectar a nada).
+  const paths = requestFilePaths(r);
+  if (paths.length) await supabase.storage.from('receipts').remove(paths).catch(() => {});
+}
+
 export async function createRequest(input) {
   const { data, error } = await supabase.rpc('create_booking_request', { p: input });
   if (error) throw fail(error, 'No se pudo enviar tu solicitud. Inténtalo de nuevo.');

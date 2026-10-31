@@ -12,7 +12,7 @@ test('el administrador tiene todos los permisos', () => {
 });
 
 test('la asistente ve solicitudes, comprobantes y seguimientos; decide sesiones y marca etapas', () => {
-  assert.deepEqual([...ROLES.assistant.permissions].sort(), ['receipts.view', 'requests.view', 'sessions.decide', 'tracking.update', 'tracking.view']);
+  assert.deepEqual([...ROLES.assistant.permissions].sort(), ['calendar.view', 'receipts.view', 'requests.view', 'sessions.decide', 'tracking.update', 'tracking.view']);
   for (const p of ['dashboard.view', 'finance.view', 'payments.manage', 'requests.manage', 'catalog.manage', 'web.manage', 'brands.manage', 'users.manage']) {
     assert.equal(can(asis, p), false, p);
   }
@@ -34,4 +34,11 @@ test('si el usuario elegido no existe o está inactivo, se usa un administrador 
   const users = [{ ...asis, active: false }, admin];
   assert.equal(resolveUser(users, 'b').id, 'a');
   assert.equal(resolveUser(users, 'zzz').id, 'a');
+});
+
+test('la asistente ve el calendario pero no lo modifica ni borra solicitudes', () => {
+  assert.ok(ROLES.assistant.permissions.includes('calendar.view'));
+  assert.ok(!ROLES.assistant.permissions.includes('calendar.manage'));
+  assert.ok(!ROLES.assistant.permissions.includes('requests.delete'));
+  assert.ok(ROLES.admin.permissions.includes('requests.delete') && ROLES.admin.permissions.includes('calendar.view'));
 });

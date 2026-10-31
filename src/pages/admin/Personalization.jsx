@@ -1,4 +1,5 @@
 import { EmailEditor } from '../../components/admin/EmailEditor.jsx';
+import { WhatsAppTemplates } from '../../components/admin/WhatsAppTemplates.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
@@ -428,6 +429,15 @@ function BrandWebEditor({ brand, plans, onDirty }) {
         value={d.web.emails}
         onChange={(emails) => setWeb({ emails })}
         dirty={dirty}
+      />
+
+      {/* 11. WhatsApp */}
+      <WhatsAppTemplates
+        number={11}
+        brand={brand}
+        plan={plans.find((p) => p.active) ?? plans[0]}
+        value={d.web.whatsapp}
+        onChange={(whatsapp) => setWeb({ whatsapp })}
       />
 
       <SaveBar

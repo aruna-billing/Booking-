@@ -8,10 +8,9 @@ import { ReceiptPreview } from '../../components/admin/ReceiptPreview.jsx';
 import { PaymentsPanel } from '../../components/admin/PaymentsPanel.jsx';
 import { AddPaymentModal } from '../../components/admin/AddPaymentModal.jsx';
 import { Button } from '../../components/ui/Button.jsx';
-import { Modal } from '../../components/ui/Modal.jsx';
 import { Field } from '../../components/ui/Field.jsx';
 import { EmptyState, PaymentStatusBadge, RequestStatusBadge, PhotoPlaceholder, useToast } from '../../components/ui/misc.jsx';
-import { Link } from '../../lib/router.jsx';
+import { Link, navigate } from '../../lib/router.jsx';
 import { formatDateTime, formatLongDate, formatShortDate, formatTime } from '../../lib/date.js';
 import { formatDuration, formatFileSize, formatMoney, shortId } from '../../lib/format.js';
 import { endTime } from '../../lib/availability.js';
@@ -19,6 +18,7 @@ import * as api from '../../services/api.js';
 import { useAdmin, NoAccess } from '../../components/admin/AdminLayout.jsx';
 import { canSeeBrand } from '../../lib/auth.js';
 import { ClientTimeline } from '../../components/admin/ClientTimeline.jsx';
+import { WhatsAppModal } from '../../components/admin/WhatsAppModal.jsx';
 
 const REJECT_PRESETS = ['El monto no coincide con el anticipo', 'Comprobante ilegible', 'No se encontró el depósito en la cuenta'];
 export const SESSION_REJECT_PRESETS = ['Fecha no disponible', 'Comprobante no válido', 'El monto no coincide con el anticipo', 'Datos incompletos'];
@@ -56,10 +56,6 @@ export function RequestDetail({ id }) {
       setBusy(null);
     }
   };
-
-  const waText = `Hola ${r.client.firstName}, te escribe ${brand.name}. Recibimos tu solicitud ${shortId(r.id)} para ${r.planName} el ${formatLongDate(r.date)} a las ${formatTime(r.time)}. ${
-    r.status === 'confirmed' ? '¡Tu reserva está confirmada!' : 'La estamos revisando y te confirmaremos pronto.'
-  }`;
 
   return (
     <>
@@ -121,9 +117,12 @@ export function RequestDetail({ id }) {
         {can('payments.manage') && r.status !== 'cancelled' && (
           <Button variant="secondary" onClick={() => setDialog('payment')}>Agregar pago</Button>
         )}
-        {can('requests.manage') && <Button variant="ghost" onClick={() => setDialog('whatsapp')}>Preparar mensaje de WhatsApp</Button>}
+        <Button variant="ghost" onClick={() => setDialog('whatsapp')} data-testid="wa-button">Mensaje de WhatsApp</Button>
         {can('requests.manage') && r.status !== 'cancelled' && r.status !== 'completed' && (
           <Button variant="danger-ghost" onClick={() => setDialog('cancel')}>Cancelar reserva</Button>
+        )}
+        {can('requests.delete') && (
+          <Button variant="danger-ghost" onClick={() => setDialog('delete')} data-testid="delete-request">Borrar solicitud</Button>
         )}
       </div>
       {decidesSessions && PENDING.includes(r.status) && !hasReceipt && (
@@ -351,33 +350,26 @@ export function RequestDetail({ id }) {
         danger
         onConfirm={(reason) => api.cancelRequest(r.id, reason).then(() => toast('Reserva cancelada', 'red'))}
       />
-      <Modal
-        open={dialog === 'whatsapp'}
+      {dialog === 'whatsapp' && (
+        <WhatsAppModal request={r} brand={brand} plan={db.plans.find((p) => p.id === r.planId)} onClose={() => setDialog(null)} canEditTemplates={can('web.manage')} />
+      )}
+      <ConfirmDialog
+        open={dialog === 'delete'}
         onClose={() => setDialog(null)}
-        title="Mensaje de WhatsApp (borrador)"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setDialog(null)}>Cerrar</Button>
-            <Button
-              data-autofocus
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(waText);
-                  toast('Texto copiado');
-                } catch {
-                  toast('No se pudo copiar; selecciona el texto manualmente.');
-                }
-              }}
-            >
-              Copiar texto
-            </Button>
-          </>
-        }
-      >
-        <p className="callout">WhatsApp no está conectado. Este borrador no se envía: cópialo y pégalo manualmente.</p>
-        <p className="wa-bubble">{waText}</p>
-        <p className="muted small">Para: {r.client.phone} {LIVE ? '' : '(dato ficticio)'}</p>
-      </Modal>
+        title="Borrar solicitud"
+        message={`Se borrará para siempre la solicitud de ${r.client.firstName} ${r.client.lastName} (${shortId(r.id)}), con sus pagos, notas, comprobante e imágenes. No se puede deshacer. Si solo quieres liberar la fecha, usa «Cancelar reserva».`}
+        confirmLabel="Borrar para siempre"
+        danger
+        onConfirm={async () => {
+          try {
+            await api.deleteRequest(r.id);
+            toast('Solicitud borrada', 'neutral');
+            navigate('/admin/solicitudes', { replace: true });
+          } catch (e) {
+            toast(e.message, 'red');
+          }
+        }}
+      />
     </>
   );
 }
