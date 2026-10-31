@@ -173,8 +173,14 @@ export function RequestDetail({ id }) {
                   <tr className="is-discount"><th scope="row">Descuento · cupón {r.quote.coupon?.code}{r.quote.coupon?.type === 'percent' ? ` (${r.quote.coupon.value} %)` : ''}</th><td className="num">−{formatMoney(r.quote.discount, cur)}</td></tr>
                 )}
                 <tr className="is-total"><th scope="row">Total</th><td className="num">{formatMoney(r.quote.total, cur)}</td></tr>
-                <tr><th scope="row">Anticipo requerido ({r.quote.depositPercent} %)</th><td className="num">{formatMoney(r.quote.deposit, cur)}</td></tr>
-                <tr><th scope="row">Saldo después del anticipo</th><td className="num">{formatMoney(r.quote.balance, cur)}</td></tr>
+                {r.quote.payMode === 'full' ? (
+                  <tr data-testid="quote-full"><th scope="row">El cliente eligió pagar el total</th><td className="num">{formatMoney(r.quote.deposit, cur)}</td></tr>
+                ) : (
+                  <>
+                    <tr><th scope="row">Anticipo requerido ({r.quote.depositPercent} %)</th><td className="num">{formatMoney(r.quote.deposit, cur)}</td></tr>
+                    <tr><th scope="row">Saldo después del anticipo</th><td className="num">{formatMoney(r.quote.balance, cur)}</td></tr>
+                  </>
+                )}
               </tbody>
             </table>
           </Card>
@@ -183,6 +189,7 @@ export function RequestDetail({ id }) {
             {r.notes ? <p className="client-notes">{r.notes}</p> : <p className="muted">Sin notas.</p>}
           </Card>
 
+          {(r.inspirationFiles?.length > 0 || brand?.askInspiration !== false) && (
           <Card title={`Imágenes de inspiración (${r.inspirationFiles.length})`}>
             {r.inspirationFiles.length === 0 ? (
               <p className="muted">El cliente no adjuntó imágenes.</p>
@@ -205,6 +212,7 @@ export function RequestDetail({ id }) {
               </>
             )}
           </Card>
+          )}
         </div>
 
         <div className="detail-col">

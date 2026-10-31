@@ -3,7 +3,7 @@ import { Card, Toggle } from './parts.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Field } from '../ui/Field.jsx';
 import { useToast } from '../ui/misc.jsx';
-import { EMAIL_KINDS, EMAIL_VARS, LOGO_WIDTH, TERMS_MODES, defaultEmail, emailFooter, emailLogo, emailLogoSource, emailVars, fillTemplate, footerSettings, headerSettings, sampleRequest } from '../../lib/emails.js';
+import { EMAIL_KINDS, EMAIL_VARS, LOGO_WIDTH, TERMS_MODES, defaultEmail, emailFooter, emailLogo, emailLogoSource, emailVars, fillTemplate, footerNote, footerSettings, headerSettings, NOTE_EXAMPLE, NOTE_MAX, sampleRequest } from '../../lib/emails.js';
 import { useDb } from '../../store/mockDb.js';
 import { ImageUpload } from '../ui/ImageUpload.jsx';
 
@@ -125,6 +125,13 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
                 </select>
               </Field>
             )}
+            <Field
+              label="Nota al final del correo"
+              hint="Sale en los dos correos, al final, aunque el pie esté apagado. Vacío = sin nota."
+              counter={!foot.note ? <button type="button" className="link-btn small" onClick={() => setFoot({ note: NOTE_EXAMPLE })} data-testid="email-note-example">Usar «mensaje automático»</button> : null}
+            >
+              <textarea rows={2} maxLength={NOTE_MAX} value={foot.note} placeholder={NOTE_EXAMPLE} onChange={(e) => setFoot({ note: e.target.value })} data-testid="email-footer-note" />
+            </Field>
           </fieldset>
         </div>
 
@@ -153,6 +160,9 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
                 <p>{footer.contact.join(' · ')}</p>
                 {footer.accepted && <p>{footer.accepted}</p>}
               </div>
+            )}
+            {footerNote(draftBrand) && (
+              <p className="email-preview__note" data-testid="email-preview-note">{footerNote(draftBrand)}</p>
             )}
           </div>
           {LIVE ? (

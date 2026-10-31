@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useBooking } from '../../store/BookingContext.jsx';
-import { computeQuote, extraAppliesToPlan } from '../../lib/pricing.js';
+import { computeQuote, extraAppliesToPlan, wantsFullPayment } from '../../lib/pricing.js';
 import { agendaRequests } from '../../lib/busy.js';
 import { planAvailability, planLimit, planUses, planVisible } from '../../lib/planLimits.js';
 import { LIVE } from '../../lib/mode.js';
@@ -28,7 +28,7 @@ export function useBookingData(brandId) {
     const extras = db.extras.filter((e) => e.brandId === brandId && plan && extraAppliesToPlan(e, plan.id));
     // Solo cuentan extras válidos para el plan actual.
     const selection = Object.fromEntries(Object.entries(draft.extras).filter(([id]) => extras.some((e) => e.id === id)));
-    const quote = computeQuote({ plan, extras, selection, depositPercent: brand?.depositPercent, coupon: draft.coupon });
+    const quote = computeQuote({ plan, extras, selection, depositPercent: brand?.depositPercent, coupon: draft.coupon, payFull: wantsFullPayment(brand, draft) });
     const availabilityCtx = brand
       ? {
           brandId,

@@ -13,6 +13,7 @@ import { formatMoney } from '../../lib/format.js';
 import { navigate } from '../../lib/router.jsx';
 import { createBookingRequest } from '../../services/api.js';
 import { webText } from '../../lib/webConfig.js';
+import { canPayFull } from '../../lib/pricing.js';
 
 export function StepPayment({ data }) {
   const { brand, plan, quote, draft, dispatch, bankAccounts, db } = data;
@@ -26,6 +27,8 @@ export function StepPayment({ data }) {
   const errors = validatePayment(p);
   const show = (k) => (submitted ? errors[k] : undefined);
   const update = (patch) => dispatch({ type: 'updatePayment', patch });
+  const choice = canPayFull(brand);
+  const full = quote.payMode === 'full';
 
   const copy = async (text) => {
     try {
@@ -59,7 +62,7 @@ export function StepPayment({ data }) {
       brand={brand}
       step={4}
       eyebrow="Último paso"
-      title="Realiza tu anticipo"
+      title={full ? 'Realiza tu pago' : 'Realiza tu anticipo'}
       intro={webText(brand, 'paymentIntro')}
       aside={<OrderSummary brand={brand} plan={plan} quote={quote} date={draft.date} time={draft.time} />}
       footer={
@@ -75,16 +78,38 @@ export function StepPayment({ data }) {
         />
       }
     >
+      {choice && (
+        <fieldset className="pay-choice" data-testid="pay-choice">
+          <legend className="pay-choice__label">{webText(brand, 'payChoiceLabel')}</legend>
+          <div className="pay-choice__opts">
+            {[
+              ['deposit', webText(brand, 'payDepositOption'), `${brand.depositPercent} % ahora · el resto el día de la sesión`],
+              ['full', webText(brand, 'payFullOption'), 'Todo ahora · no queda saldo pendiente'],
+            ].map(([k, label, sub]) => {
+              const on = (k === 'full') === full;
+              return (
+                <label key={k} className={`pay-choice__opt ${on ? 'is-on' : ''}`}>
+                  <input type="radio" name="payMode" checked={on} onChange={() => update({ mode: k })} data-testid={`pay-${k}`} />
+                  <span className="pay-choice__title">{label}</span>
+                  <span className="pay-choice__sub">{sub}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+
       <div className="amount-due" aria-labelledby="due-label">
-        <p id="due-label" className="amount-due__label">
-          Importe a transferir · anticipo del {quote.depositPercent} %
+        <p id="due-label" className="amount-due__label" data-testid="amount-label">
+          {webText(brand, 'amountLabel')} · {full ? 'pago total' : `anticipo del ${quote.depositPercent} %`}
         </p>
         <p className="amount-due__value" data-testid="amount-due">
           {formatMoney(quote.deposit, brand.currency)}
         </p>
         <p className="amount-due__note">
           Total de la reserva {formatMoney(quote.total, brand.currency)}
-          {quote.discount > 0 && <> (con {formatMoney(quote.discount, brand.currency)} de descuento)</>} · saldo de {formatMoney(quote.balance, brand.currency)} a pagar el día de la sesión.
+          {quote.discount > 0 && <> (con {formatMoney(quote.discount, brand.currency)} de descuento)</>}
+          {full ? ' · no queda saldo pendiente.' : <> · saldo de {formatMoney(quote.balance, brand.currency)} a pagar el día de la sesión.</>}
         </p>
       </div>
       {(db.organization.showCouponField !== false || draft.coupon) && <CouponBox brand={brand} draft={draft} dispatch={dispatch} quote={quote} />}

@@ -8,8 +8,9 @@ import { discountFor, normalizeCode } from './coupons.js';
  * @param {Array}  args.extras                 Catálogo de extras de la marca
  * @param {Record<string, number>} args.selection  { [extraId]: cantidad }
  * @param {number} args.depositPercent         Porcentaje de anticipo (0–100)
+ * @param {boolean} args.payFull              El cliente eligió pagar el total ahora
  */
-export function computeQuote({ plan, extras = [], selection = {}, depositPercent = 0, coupon = null }) {
+export function computeQuote({ plan, extras = [], selection = {}, depositPercent = 0, coupon = null, payFull = false }) {
   const planPrice = plan ? toAmount(plan.price) : 0;
 
   const lines = Object.entries(selection)
@@ -34,7 +35,7 @@ export function computeQuote({ plan, extras = [], selection = {}, depositPercent
   // Cupón: se descuenta del total (plan + extras); el anticipo se calcula ya con descuento.
   const discount = coupon ? discountFor(coupon, subtotal) : 0;
   const total = subtotal - discount;
-  const pct = Math.min(100, Math.max(0, Number(depositPercent) || 0));
+  const pct = payFull ? 100 : Math.min(100, Math.max(0, Number(depositPercent) || 0));
   const deposit = Math.round((total * pct) / 100);
 
   // Duración: tiempo del plan + minutos que suman los extras (p. ej. 30 min adicionales × 2).
@@ -49,6 +50,7 @@ export function computeQuote({ plan, extras = [], selection = {}, depositPercent
     discount,
     coupon: coupon && discount > 0 ? { code: normalizeCode(coupon.code), type: coupon.type, value: Number(coupon.value) } : null,
     total,
+    payMode: payFull ? 'full' : 'deposit',
     depositPercent: pct,
     deposit,
     balance: total - deposit,
@@ -66,3 +68,12 @@ const toAmount = (n) => {
 /** ¿El extra está disponible para el plan elegido? */
 export const extraAppliesToPlan = (extra, planId) =>
   extra.active !== false && (!extra.appliesTo || extra.appliesTo.length === 0 || extra.appliesTo.includes(planId));
+
+/** ¿La marca deja elegir entre anticipo y pago total? (solo si el anticipo es menor al 100 %). */
+export const canPayFull = (brand) => Boolean(brand?.allowFullPayment) && (Number(brand?.depositPercent) || 0) < 100;
+
+/** ¿Se paga el total con este borrador? */
+export const wantsFullPayment = (brand, draft) => canPayFull(brand) && draft?.payment?.mode === 'full';
+
+/** ¿La marca pide imágenes de inspiración en el formulario? */
+export const asksInspiration = (brand) => brand?.askInspiration !== false;

@@ -325,6 +325,7 @@ declare
   v_total    integer;
   v_pct      integer;
   v_deposit  integer;
+  v_full     boolean := false; -- el cliente eligió pagar el total (si la marca lo permite)
   v_start    integer;
   v_open     integer;
   v_close    integer;
@@ -415,6 +416,8 @@ begin
 
   v_total   := v_subtotal - v_discount;
   v_pct     := least(100, greatest(0, coalesce((v_brand->>'depositPercent')::integer, 0)));
+  v_full    := coalesce(p->>'payMode' = 'full' and coalesce((v_brand->>'allowFullPayment')::boolean, false) and v_pct < 100, false);
+  if v_full then v_pct := 100; end if;
   v_deposit := round(v_total * v_pct / 100.0);
   v_dur     := v_base_min + v_extra_min;
   if v_dur = 0 then v_dur := coalesce((v_rules->>'defaultDurationMin')::integer, 60); end if;
@@ -508,7 +511,8 @@ begin
   select name, metadata into v_robj from storage.objects where bucket_id = 'receipts' and name = v_rpath;
   if not found then raise exception 'No encontramos tu comprobante. Vuelve a adjuntarlo.'; end if;
 
-  for v_file in select * from jsonb_array_elements(coalesce(p->'inspirationFiles', '[]')) limit 6 loop
+  -- Si la marca no pide imágenes de inspiración, se ignoran.
+  for v_file in select * from jsonb_array_elements(case when coalesce((v_brand->>'askInspiration')::boolean, true) then coalesce(p->'inspirationFiles', '[]') else '[]'::jsonb end) limit 6 loop
     continue when v_file->>'path' is null or v_file->>'path' !~ '^incoming/';
     select name, metadata into v_fobj from storage.objects where bucket_id = 'receipts' and name = v_file->>'path';
     continue when not found;
@@ -537,6 +541,7 @@ begin
       'subtotal', v_subtotal, 'discount', v_discount,
       'coupon', case when v_discount > 0 then jsonb_build_object('code', v_coupon->>'code', 'type', v_coupon->>'type', 'value', (v_coupon->>'value')::numeric) else null end,
       'total', v_total,
+      'payMode', case when v_full then 'full' else 'deposit' end,
       'depositPercent', v_pct, 'deposit', v_deposit, 'balance', v_total - v_deposit,
       'baseDurationMin', v_base_min, 'extraMinutes', v_extra_min, 'durationMin', v_base_min + v_extra_min),
     'date', v_date::text,
@@ -551,7 +556,7 @@ begin
     'deliveredAt', null,
     'galleryUrl', '',
     'payments', jsonb_build_array(jsonb_build_object(
-      'id', v_id || '-p1', 'amount', v_deposit, 'method', 'transfer', 'concept', 'deposit',
+      'id', v_id || '-p1', 'amount', v_deposit, 'method', 'transfer', 'concept', case when v_full then 'full' else 'deposit' end,
       'date', v_today::text, 'reference', 'Comprobante adjunto', 'status', 'pending',
       'source', 'client', 'createdAt', v_now)),
     'history', jsonb_build_array(

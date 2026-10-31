@@ -3,7 +3,7 @@ import { LIVE } from '../../lib/mode.js';
 import { useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
-import { Card, PageHeader } from '../../components/admin/parts.jsx';
+import { Card, PageHeader, Toggle } from '../../components/admin/parts.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Field } from '../../components/ui/Field.jsx';
 import { OrgMark } from '../../components/ui/BrandMark.jsx';
@@ -208,6 +208,29 @@ function BrandEditor({ brand, db }) {
             </Field>
             <span />
           </div>
+          <fieldset className="fieldset" data-testid="brand-form-options">
+            <legend className="field__label">Formulario y pago</legend>
+            <div className="toggle-list">
+              <Toggle
+                checked={b.askInspiration !== false}
+                onChange={(v) => set({ askInspiration: v })}
+                label="Pedir imágenes de inspiración (el cliente puede subir referencias)"
+              />
+              <Toggle
+                checked={Boolean(b.allowFullPayment)}
+                onChange={(v) => set({ allowFullPayment: v })}
+                label="Dejar que el cliente elija entre pagar el anticipo o el total"
+              />
+            </div>
+            {b.allowFullPayment && Number(b.depositPercent) >= 100 && (
+              <p className="muted small">Con un anticipo del 100 % no hay nada que elegir: el botón no se muestra.</p>
+            )}
+            <p className="muted small">
+              Los textos de los botones («Pagar anticipo», «Pagar total») y del importe se cambian en{' '}
+              <Link to="/admin/personalizacion">Personalización → Textos</Link>.
+            </p>
+          </fieldset>
+
           <p className="callout small">
             Los textos, imágenes y galería de la web de esta marca se editan en{' '}
             <Link to="/admin/personalizacion">Personalización</Link>.

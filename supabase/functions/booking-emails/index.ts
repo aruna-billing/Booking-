@@ -124,8 +124,15 @@ const TERMS_MODES = ['confirmed', 'both', 'none'];
 
 export function footerSettings(brand: any) {
   const f = brand?.web?.emails?.footer ?? {};
-  return { enabled: f.enabled !== false, terms: TERMS_MODES.includes(f.terms) ? f.terms : 'confirmed' };
+  return {
+    enabled: f.enabled !== false,
+    terms: TERMS_MODES.includes(f.terms) ? f.terms : 'confirmed',
+    note: typeof f.note === 'string' ? f.note.slice(0, 300) : '',
+  };
 }
+
+/** Nota al final (ej.: «Este mensaje es automático, no respondas.»). Sale aunque el pie esté apagado. */
+export const footerNote = (brand: any) => footerSettings(brand).note.trim();
 
 const LOGO_WIDTH = { min: 60, max: 320, def: 160 };
 
@@ -177,6 +184,7 @@ export function buildEmail(brand: any, kind: string, r: any, terms: any = null) 
   const accent = /^#[0-9a-f]{3,8}$/i.test(theme.accent ?? '') ? theme.accent : '#111111';
   const logo = emailLogo(brand);
   const foot = emailFooter(brand, kind, terms, r);
+  const note = footerNote(brand);
   const paragraphs = body
     .split(/\n{2,}/)
     .map((p) => `<p style="margin:0 0 16px;line-height:1.55">${lines(p)}</p>`)
@@ -200,6 +208,7 @@ ${termsHtml}
 </table>
 <table role="presentation" width="100%" style="max-width:560px" cellspacing="0" cellpadding="0"><tr><td style="padding:16px 28px 0;font-size:12px;line-height:1.5;color:#77736b;text-align:center">
 ${foot ? `<p style="margin:0 0 6px">${foot.contact.map(esc).join(' · ')}</p>${foot.accepted ? `<p style="margin:0">${esc(foot.accepted)}</p>` : ''}` : `<p style="margin:0">${esc(brand.name)}${brand.email ? ` · ${esc(brand.email)}` : ''}</p>`}
+${note ? `<p style="margin:10px 0 0;font-style:italic">${lines(note)}</p>` : ''}
 </td></tr></table>
 </td></tr></table></body></html>`;
   const textFoot = foot
@@ -212,7 +221,8 @@ ${foot ? `<p style="margin:0 0 6px">${foot.contact.map(esc).join(' · ')}</p>${f
         ...(foot.terms ? ['', foot.terms.title, ...foot.terms.sections.map((x: any) => `${x.title ? `${x.title}. ` : ''}${x.body}`)] : []),
       ].join('\n')
     : '';
-  return { subject, text: body + textFoot, html, enabled: t.enabled };
+  const textNote = note ? `${textFoot ? '\n\n' : '\n\n—\n'}${note}` : '';
+  return { subject, text: body + textFoot + textNote, html, enabled: t.enabled };
 }
 
 // ───────────────────────── Envío ─────────────────────────

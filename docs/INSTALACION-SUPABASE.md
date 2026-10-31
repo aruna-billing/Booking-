@@ -71,6 +71,14 @@ En el panel → **Cupones**:
 
 **Seguridad:** la lista de cupones está en la configuración privada; el público nunca la ve. El navegador solo pregunta por un código concreto (`check_coupon`), con una pequeña espera para frenar a quien intente adivinar códigos. Al enviar la reserva, el servidor vuelve a comprobar el cupón y calcula el descuento él mismo.
 
+## Pago total o anticipo, e imágenes de inspiración
+
+En el panel → **Marcas** → «Formulario y pago»:
+- **Dejar que el cliente elija entre pagar el anticipo o el total:** en el paso de pago aparecen dos botones. Si elige el total, el importe a transferir es el total y no queda saldo. El servidor solo lo acepta si la marca lo tiene activado.
+- **Pedir imágenes de inspiración:** si lo apagas, el campo desaparece del formulario (y el servidor ignora archivos que lleguen igual).
+
+Los textos de los botones y el título del importe («Importe a transferir») se cambian en **Personalización → Textos del recorrido**.
+
 ## Planes limitados (cupos y fechas)
 
 En el panel → **Planes y extras** → editar un plan → **Plan limitado**:

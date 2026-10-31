@@ -39,12 +39,12 @@ export function PaidBar({ request: r, compact = false }) {
         aria-label={`Pagado ${pct} % del total`}
       >
         <span className="paidbar__fill" style={{ width: `${pct}%` }} />
-        <span className="paidbar__mark" style={{ left: `${depPct}%` }} title={`Anticipo (${r.quote.depositPercent} %)`} />
+        {r.quote.payMode !== 'full' && <span className="paidbar__mark" style={{ left: `${depPct}%` }} title={`Anticipo (${r.quote.depositPercent} %)`} />}
       </div>
       {!compact && (
         <p className="paidbar__legend small">
           <span>{pct} % cobrado</span>
-          <span className="muted">Marca: anticipo {r.quote.depositPercent} %</span>
+          <span className="muted">{r.quote.payMode === 'full' ? 'El cliente eligió pagar el total' : `Marca: anticipo ${r.quote.depositPercent} %`}</span>
         </p>
       )}
     </div>

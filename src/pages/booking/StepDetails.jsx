@@ -9,6 +9,7 @@ import { FilePicker } from '../../components/ui/FilePicker.jsx';
 import { FILE_RULES, validateDetails } from '../../lib/validation.js';
 import { navigate } from '../../lib/router.jsx';
 import { webText } from '../../lib/webConfig.js';
+import { asksInspiration } from '../../lib/pricing.js';
 
 const FIELD_ORDER = ['firstName', 'lastName', 'email', 'phone', 'notes', 'acceptedTerms'];
 const NOTES_MAX = 1500;
@@ -88,6 +89,7 @@ export function StepDetails({ data }) {
           </Field>
         </div>
 
+        {asksInspiration(brand) && (
         <FilePicker
           label="Imágenes de inspiración"
           hint="Referencias de estilo, vestuario o locación"
@@ -97,6 +99,7 @@ export function StepDetails({ data }) {
           maxSizeMB={FILE_RULES.inspiration.maxSizeMB}
           accept={FILE_RULES.inspiration.accept}
         />
+        )}
 
         <Field
           label="Comparte notas sobre ti y tus preferencias"

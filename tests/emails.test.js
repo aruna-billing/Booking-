@@ -64,3 +64,11 @@ test('logo para correos: tiene prioridad sobre el de Marcas', () => {
   assert.equal(emailLogo({ logo: { src: 'https://x/marca.svg' }, web: { emails: { logo: { src: 'https://x/c.png' } } } }), 'https://x/c.png');
   assert.equal(emailLogo({ logo: { src: 'https://x/marca.png' }, web: { emails: { logo: { src: 'https://x/c.svg' } } } }), 'https://x/marca.png');
 });
+
+test('nota al final del correo', async () => {
+  const { footerNote, footerSettings, NOTE_EXAMPLE } = await import('../src/lib/emails.js');
+  assert.equal(footerNote({}), '');
+  assert.equal(footerNote({ web: { emails: { footer: { note: '  Automático  ' } } } }), 'Automático');
+  assert.equal(footerSettings({ web: { emails: { footer: { note: 'x'.repeat(400) } } } }).note.length, 300);
+  assert.ok(NOTE_EXAMPLE.includes('automático'));
+});

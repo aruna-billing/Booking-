@@ -46,3 +46,23 @@ test('extras limitados a ciertos planes', () => {
   assert.equal(extraAppliesToPlan(preboda, 'el-clasica'), true);
   assert.equal(extraAppliesToPlan(preboda, 'el-editorial'), false);
 });
+
+test('pago total: el cliente paga el 100 % y no queda saldo', async () => {
+  const { computeQuote, canPayFull, wantsFullPayment, asksInspiration } = await import('../src/lib/pricing.js');
+  const plan = { price: 5500 };
+  const dep = computeQuote({ plan, depositPercent: 50 });
+  assert.equal(dep.deposit, 2750);
+  assert.equal(dep.payMode, 'deposit');
+  const full = computeQuote({ plan, depositPercent: 50, payFull: true });
+  assert.equal(full.deposit, 5500);
+  assert.equal(full.balance, 0);
+  assert.equal(full.payMode, 'full');
+  const brand = { depositPercent: 50, allowFullPayment: true };
+  assert.equal(canPayFull(brand), true);
+  assert.equal(canPayFull({ depositPercent: 100, allowFullPayment: true }), false);
+  assert.equal(canPayFull({ depositPercent: 50 }), false);
+  assert.equal(wantsFullPayment(brand, { payment: { mode: 'full' } }), true);
+  assert.equal(wantsFullPayment({ depositPercent: 50 }, { payment: { mode: 'full' } }), false);
+  assert.equal(asksInspiration({}), true);
+  assert.equal(asksInspiration({ askInspiration: false }), false);
+});

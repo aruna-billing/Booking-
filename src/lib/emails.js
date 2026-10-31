@@ -127,8 +127,18 @@ export const TERMS_MODES = [
 
 export function footerSettings(brand) {
   const f = brand?.web?.emails?.footer ?? {};
-  return { enabled: f.enabled !== false, terms: TERMS_MODES.some(([k]) => k === f.terms) ? f.terms : 'confirmed' };
+  return {
+    enabled: f.enabled !== false,
+    terms: TERMS_MODES.some(([k]) => k === f.terms) ? f.terms : 'confirmed',
+    note: typeof f.note === 'string' ? f.note.slice(0, NOTE_MAX) : '',
+  };
 }
+
+// Nota al final del correo (ej.: «Este mensaje es automático, no respondas a este correo.»).
+// Sale aunque el pie esté apagado.
+export const NOTE_MAX = 300;
+export const NOTE_EXAMPLE = 'Este mensaje es automático, por favor no respondas a este correo.';
+export const footerNote = (brand) => footerSettings(brand).note.trim();
 
 // Cabecera: brand.web.emails.header = { logoWidth (px), align: 'left' | 'center' }.
 export const LOGO_WIDTH = { min: 60, max: 320, step: 10, def: 160 };

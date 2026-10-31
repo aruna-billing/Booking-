@@ -8,7 +8,7 @@
 // Google Calendar y WhatsApp NO están conectados en ninguno de los dos modos.
 
 import { getState, setState } from '../store/mockDb.js';
-import { computeQuote } from '../lib/pricing.js';
+import { asksInspiration, computeQuote, wantsFullPayment } from '../lib/pricing.js';
 import { getDayAvailability } from '../lib/availability.js';
 import { getCurrentUser, requirePermission } from '../lib/auth.js';
 import { LIVE } from '../lib/mode.js';
@@ -93,7 +93,7 @@ export async function createBookingRequest(draft) {
     if (!st.ok) throw new Error(`${st.reason} Quítalo para continuar.`);
     coupon = found;
   }
-  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon });
+  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon, payFull: wantsFullPayment(brand, draft) });
 
   // Revalidación con la duración total (plan + minutos extra), como haría el servidor.
   const day = getDayAvailability(draft.date, {
@@ -125,7 +125,7 @@ export async function createBookingRequest(draft) {
       phone: draft.details.phone.trim(),
     },
     notes: draft.details.notes.trim(),
-    inspirationFiles: draft.details.inspirationFiles.map(stripFile),
+    inspirationFiles: asksInspiration(brand) ? draft.details.inspirationFiles.map(stripFile) : [],
     planId: plan.id,
     planName: plan.name,
     currency: brand.currency,
@@ -140,7 +140,7 @@ export async function createBookingRequest(draft) {
     galleryUrl: '',
     // El anticipo reportado por el cliente queda «por verificar» hasta que el equipo lo revise.
     payments: [
-      { id: `${id}-p1`, amount: quote.deposit, method: 'transfer', concept: 'deposit', date: createdAt.slice(0, 10), reference: 'Comprobante adjunto', status: 'pending', source: 'client', createdAt },
+      { id: `${id}-p1`, amount: quote.deposit, method: 'transfer', concept: quote.payMode === 'full' ? 'full' : 'deposit', date: createdAt.slice(0, 10), reference: 'Comprobante adjunto', status: 'pending', source: 'client', createdAt },
     ],
     history: [
       { at: createdAt, label: 'Solicitud recibida desde el formulario público', by: 'Cliente' },
@@ -172,7 +172,7 @@ async function createBookingRequestLive(draft) {
   }
 
   // Comprobación rápida con la agenda actual (el servidor vuelve a comprobarlo).
-  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon: draft.coupon ?? null });
+  const quote = computeQuote({ plan, extras: s.extras, selection: draft.extras, depositPercent: brand.depositPercent, coupon: draft.coupon ?? null, payFull: wantsFullPayment(brand, draft) });
   try {
     await cloud.loadBusySlots(brand.id);
   } catch {
@@ -198,8 +198,9 @@ async function createBookingRequestLive(draft) {
     notes: d.notes.trim(),
     acceptedTerms: d.acceptedTerms === true,
     couponCode: draft.coupon?.code ?? null,
+    payMode: quote.payMode,
     receipt: { name: receipt.name, path: receipt.path },
-    inspirationFiles: d.inspirationFiles.filter((f) => f.path).map((f) => ({ name: f.name, path: f.path })),
+    inspirationFiles: (asksInspiration(brand) ? d.inspirationFiles : []).filter((f) => f.path).map((f) => ({ name: f.name, path: f.path })),
   });
   // Copia local mínima para la pantalla de gracias (el público no puede leer la tabla).
   const request = {

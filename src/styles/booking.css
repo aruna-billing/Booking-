@@ -921,3 +921,60 @@ label.extra__main {
 }
 .plan__flag .tag-chip__emoji, .tag-chip__emoji { font-size: 1.05em; }
 .plan__flag { text-transform: none; letter-spacing: 0.02em; font-size: 0.8125rem; font-weight: 500; }
+
+/* Elegir cómo pagar: anticipo o total */
+.pay-choice {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-4);
+  min-width: 0;
+}
+.pay-choice__label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding: 0;
+}
+.pay-choice__opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.pay-choice__opt {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.pay-choice__opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.pay-choice__opt:hover {
+  border-color: var(--ink);
+}
+.pay-choice__opt:has(input:focus-visible) {
+  box-shadow: var(--focus);
+}
+.pay-choice__opt.is-on {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.pay-choice__title {
+  font-weight: 600;
+}
+.pay-choice__sub {
+  font-size: 0.8125rem;
+  opacity: 0.75;
+}
+@media (max-width: 420px) {
+  .pay-choice__opts {
+    grid-template-columns: 1fr;
+  }
+}

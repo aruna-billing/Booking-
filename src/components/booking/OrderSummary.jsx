@@ -73,14 +73,23 @@ export function OrderSummary({ brand, plan, quote, date, time, title = 'Tu reser
           </div>
           {showDeposit && (
             <div className="summary__deposit">
-              <div>
-                <span>Anticipo para reservar ({quote.depositPercent} %)</span>
-                <strong data-testid="summary-deposit">{formatMoney(quote.deposit, cur)}</strong>
-              </div>
-              <div className="summary__balance">
-                <span>Saldo · se paga el día de la sesión</span>
-                <span>{formatMoney(quote.balance, cur)}</span>
-              </div>
+              {quote.payMode === 'full' ? (
+                <div>
+                  <span>Pago total ahora</span>
+                  <strong data-testid="summary-deposit">{formatMoney(quote.deposit, cur)}</strong>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <span>Anticipo para reservar ({quote.depositPercent} %)</span>
+                    <strong data-testid="summary-deposit">{formatMoney(quote.deposit, cur)}</strong>
+                  </div>
+                  <div className="summary__balance">
+                    <span>Saldo · se paga el día de la sesión</span>
+                    <span>{formatMoney(quote.balance, cur)}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </>

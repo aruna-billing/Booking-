@@ -1253,6 +1253,7 @@
 .email-preview__terms p { margin: 0 0 8px; line-height: 1.5; }
 .email-preview__foot { text-align: center; font-size: .75rem; color: #77736b; padding: 10px 6px 2px; overflow-wrap: anywhere; }
 .email-preview__foot p { margin: 0 0 4px; }
+.email-preview__note { text-align: center; font-size: .75rem; font-style: italic; color: #77736b; margin: 6px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
 .email-editor__head { display: grid; gap: 10px; }
 .email-editor__head input[type=range] { width: 100%; accent-color: var(--ink, #111); }
 .email-preview__logo img { max-width: 100%; max-height: none; height: auto; }
@@ -1278,3 +1279,9 @@
 .emoji-btn { width: 36px; height: 36px; display: inline-grid; place-items: center; font-size: 1.1rem; border: 1px solid var(--line, #dad7d2); background: #fff; cursor: pointer; padding: 0; }
 .emoji-btn:hover { border-color: var(--ink, #111); }
 .emoji-btn.is-on { border-color: var(--ink, #111); box-shadow: 0 0 0 1px var(--ink, #111); }
+
+.toggle-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 8px;
+}

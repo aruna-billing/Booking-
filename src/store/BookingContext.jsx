@@ -22,7 +22,7 @@ export const emptyDraft = (brandId = null) => ({
     inspirationFiles: [], // { id, name, size, type, previewUrl? }
     acceptedTerms: false,
   },
-  payment: { receipt: null, confirmedPaid: false },
+  payment: { receipt: null, confirmedPaid: false, mode: 'deposit' }, // mode: 'deposit' | 'full'
   submittedRequestId: null,
 });
 

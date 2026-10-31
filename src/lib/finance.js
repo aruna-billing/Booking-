@@ -19,6 +19,7 @@ export const PAYMENT_METHODS = {
 
 export const PAYMENT_CONCEPTS = {
   deposit: 'Anticipo',
+  full: 'Pago total',
   partial: 'Abono',
   balance: 'Saldo final',
   other: 'Otro',
@@ -133,6 +134,7 @@ export function monthlySeries(requests, n = 6, ref = today()) {
 /** Concepto sugerido para un nuevo pago. */
 export function suggestConcept(r, amount) {
   const paid = paidAmount(r);
+  if (paid === 0 && amount >= r.quote.total) return 'full';
   if (paid === 0 && amount <= r.quote.deposit) return 'deposit';
   if (paid + amount >= r.quote.total) return 'balance';
   return 'partial';
