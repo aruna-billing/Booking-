@@ -11,6 +11,7 @@ import { formatDuration, formatMoney } from './format.js';
 export const WA_KINDS = [
   { key: 'confirmed', label: 'Reserva confirmada', when: 'Para clientes con el pago comprobado y la reserva confirmada.' },
   { key: 'review', label: 'Solicitud recibida', when: 'Para solicitudes que aún están en revisión.' },
+  { key: 'moved', label: 'Cambio de fecha', when: 'Para avisar al cliente después de mover su reserva a otra fecha.' },
 ];
 
 export const WA_VARS = [
@@ -32,9 +33,25 @@ export const WA_VARS = [
   ['solicitud', 'Número de solicitud'],
   ['estado', 'Estado de la solicitud'],
   ['whatsapp', 'WhatsApp de la marca'],
+  ['fecha_anterior', 'Fecha anterior (si se movió la reserva)'],
+  ['hora_anterior', 'Hora anterior (si se movió la reserva)'],
 ];
 
 export function defaultWa(kind, brand) {
+  if (kind === 'moved') {
+    const ev = isEventBrand(brand);
+    return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
+
+Listo, movimos tu reserva 📆
+
+❌ Antes: ${ev ? '{fecha_anterior}' : '{fecha_anterior} · {hora_anterior}'}
+✅ Ahora: ${ev ? '{fecha}' : '{fecha} · {hora} a {hora_fin}'}
+
+📸 Plan: {plan}
+⏳ Pendiente: {pendiente} {pendiente_nota}
+
+Cualquier cosa, nos escribes por aquí. ¡Gracias!`;
+  }
   if (kind === 'review') {
     return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
 
@@ -105,6 +122,8 @@ export function waVars(r, brand, plan) {
     solicitud: String(r.id ?? '').replace(/^req-/, '').toUpperCase(),
     estado: REQUEST_STATUS[r.status]?.label ?? '',
     whatsapp: brand.whatsappDisplay || '',
+    fecha_anterior: r.rescheduledFrom?.date ? formatLongDate(r.rescheduledFrom.date) : '',
+    hora_anterior: r.rescheduledFrom?.time ? formatTime(r.rescheduledFrom.time) : '',
   };
 }
 

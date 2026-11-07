@@ -33,10 +33,10 @@ export async function copyText(text) {
  * Mensaje de WhatsApp de una solicitud: se rellena con la plantilla de la marca,
  * se puede retocar antes de copiarlo y abrir WhatsApp con el texto ya escrito.
  */
-export function WhatsAppModal({ request: r, brand, plan, onClose, canEditTemplates }) {
+export function WhatsAppModal({ request: r, brand, plan, onClose, canEditTemplates, initialKind }) {
   const toast = useToast();
-  const [kind, setKind] = useState(waKindFor(r));
-  const [text, setText] = useState(() => waMessage(r, brand, plan, waKindFor(r)));
+  const [kind, setKind] = useState(initialKind ?? waKindFor(r));
+  const [text, setText] = useState(() => waMessage(r, brand, plan, initialKind ?? waKindFor(r)));
   const phone = waPhone(r.client.phone);
 
   const pick = (k) => {
@@ -71,7 +71,7 @@ export function WhatsAppModal({ request: r, brand, plan, onClose, canEditTemplat
       }
     >
       <div className="seg" role="radiogroup" aria-label="Qué mensaje">
-        {WA_KINDS.map((k) => (
+        {WA_KINDS.filter((k) => k.key !== 'moved' || r.rescheduledFrom).map((k) => (
           <label key={k.key} className={`seg__opt ${kind === k.key ? 'is-on' : ''}`}>
             <input type="radio" name="wa-kind" checked={kind === k.key} onChange={() => pick(k.key)} data-testid={`wa-kind-${k.key}`} />
             {k.label}

@@ -59,6 +59,10 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
 
 Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_instalacion.sql`** completo en el SQL Editor. No borra datos y añade lo nuevo (por ejemplo, la comprobación de cupones, los cupones por plan y los planes con cupos). Si usas Google Calendar, actualiza también la función `google-calendar` con el `index.ts` nuevo.
 
+## Cambiar la fecha de una reserva
+
+En una solicitud → **Cambiar fecha**: eliges el día y la hora nuevos en un calendario que muestra lo libre y lo ocupado (sin contar esta misma reserva). Puedes elegir un día cerrado, bloqueado u ocupado; el panel te avisa antes de guardar. El cambio queda en el historial, el calendario y la agenda pública se actualizan, y si usas Google Calendar el evento se mueve solo. Al terminar se abre el mensaje de WhatsApp «Cambio de fecha» para copiarlo, y si marcas «Avisar al cliente por correo» sale el correo «Cambio de fecha» (ver `CORREOS.md`). No hace falta volver a ejecutar el SQL.
+
 ## Cupones de descuento
 
 En el panel → **Cupones**:

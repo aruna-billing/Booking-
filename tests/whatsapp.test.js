@@ -68,3 +68,13 @@ test('pagado completo: pendiente en cero y sin nota de cuándo pagar', () => {
   assert.match(waMessage(req(), brand, plan), /Pendiente: RD\$\s?2,750 \(se paga el día de la sesión\)/);
   assert.match(waMessage(req(), { ...brand, bookingType: 'event' }, plan), /se paga el día del evento/);
 });
+
+test('mensaje «Cambio de fecha» con la fecha anterior y la nueva', () => {
+  const r = req({ date: '2026-11-21', time: '15:00', rescheduledFrom: { date: '2026-11-14', time: '10:00' } });
+  const m = waMessage(r, brand, plan, 'moved');
+  assert.match(m, /Antes: sábado, 14 de noviembre de 2026 · 10:00/);
+  assert.match(m, /Ahora: sábado, 21 de noviembre de 2026 · 3:00/);
+  assert.doesNotMatch(m, /\{\w+\}/);
+  const ev = waMessage(r, { ...brand, bookingType: 'event' }, plan, 'moved');
+  assert.match(ev, /Antes: sábado, 14 de noviembre de 2026\n/);
+});

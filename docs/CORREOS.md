@@ -1,11 +1,14 @@
 # Correos automáticos al cliente
 
-El sistema envía dos correos al cliente:
+El sistema envía tres correos al cliente:
 
 | Correo | Cuándo se envía |
 |---|---|
 | **Reserva en revisión** | En cuanto el cliente envía su solicitud con el comprobante. |
 | **Reserva confirmada** | Cuando el equipo acepta la sesión o verifica el pago y confirma. |
+| **Cambio de fecha** | Cuando el equipo mueve una reserva a otra fecha (Solicitudes → **Cambiar fecha**) con la casilla «Avisar al cliente por correo» marcada. Lleva la fecha anterior y la nueva. |
+
+> **Si ya tenías la función instalada:** para el correo «Cambio de fecha», vuelve a pegar el `index.ts` nuevo en **Edge Functions → booking-emails** y pulsa **Deploy**. El webhook y los secretos no cambian.
 
 Los textos se editan en el panel → **Personalización → Correos al cliente**. Cada correo se puede apagar, y los datos (nombre, plan, fecha, hora, montos…) se rellenan solos.
 

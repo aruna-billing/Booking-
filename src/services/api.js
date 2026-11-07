@@ -10,6 +10,7 @@
 import { getState, setState } from '../store/mockDb.js';
 import { asksInspiration, computeQuote, wantsFullPayment } from '../lib/pricing.js';
 import { getDayAvailability } from '../lib/availability.js';
+import { formatShortDate, formatTime } from '../lib/date.js';
 import { getCurrentUser, requirePermission } from '../lib/auth.js';
 import { LIVE } from '../lib/mode.js';
 import { agendaRequests } from '../lib/busy.js';
@@ -250,6 +251,29 @@ export async function deleteRequest(id) {
   if (!r) throw new Error('La solicitud ya no existe.');
   if (LIVE) await cloud.deleteRequest(r);
   setState((s) => ({ ...s, requests: s.requests.filter((x) => x.id !== id) }));
+}
+
+/**
+ * Mueve una reserva a otra fecha/hora (cuando el cliente lo pide).
+ * Queda en el historial y en rescheduledFrom (para el correo y el WhatsApp «Cambio de fecha»).
+ * Con notify, la función «booking-emails» envía el correo al cliente.
+ */
+export async function rescheduleRequest(id, { date, time = null, notify = false }) {
+  guard('requests.manage', id);
+  await delay();
+  const r = getState().requests.find((x) => x.id === id);
+  if (!r) throw new Error('La solicitud ya no existe.');
+  if (r.status === 'cancelled' || r.status === 'completed') throw new Error('Solo se puede mover una reserva activa.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '')) throw new Error('Elige la nueva fecha.');
+  if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error('La hora no es válida.');
+  if (date === r.date && (time || null) === (r.time || null)) throw new Error('Es la misma fecha y hora que ya tiene.');
+  const when = (d, t) => `${formatShortDate(d)}${t ? ` ${formatTime(t)}` : ''}`;
+  const from = { date: r.date, time: r.time ?? null, at: now(), by: actor(), notify: Boolean(LIVE && notify) };
+  await updateRequest(
+    id,
+    { date, time: time || null, rescheduledFrom: from },
+    `Fecha cambiada: ${r.date ? when(r.date, r.time) : 'sin fecha'} → ${when(date, time)}${from.notify ? ' · se avisó al cliente por correo' : ''}`
+  );
 }
 
 export async function completeRequest(id) {

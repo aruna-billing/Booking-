@@ -1635,3 +1635,82 @@
   line-height: 1.45;
   resize: vertical;
 }
+
+/* Cambiar fecha */
+.move-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 20px;
+  margin: 12px 0 16px;
+}
+.move-side {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+.move-day {
+  margin: 0;
+  font-weight: 600;
+}
+.move-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.move-slot {
+  min-width: 88px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.move-slot:hover {
+  border-color: var(--ink);
+}
+.move-slot.is-busy {
+  color: var(--muted);
+  text-decoration: line-through;
+  background: #f6f3ee;
+}
+.move-slot.is-selected {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+  text-decoration: none;
+}
+.move-warn {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--amber-bg);
+  color: #7a5310;
+}
+.move-warn p {
+  margin: 0;
+}
+.move-warn p + p {
+  margin-top: 4px;
+}
+.cal__cell--current {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.cal__now {
+  display: block;
+  font-size: 0.5625rem;
+  line-height: 1;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+@media (max-width: 760px) {
+  .move-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.move-side > .link-btn {
+  justify-self: start;
+}

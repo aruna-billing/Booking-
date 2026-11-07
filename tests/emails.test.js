@@ -72,3 +72,15 @@ test('nota al final del correo', async () => {
   assert.equal(footerSettings({ web: { emails: { footer: { note: 'x'.repeat(400) } } } }).note.length, 300);
   assert.ok(NOTE_EXAMPLE.includes('automático'));
 });
+
+test('correo «Cambio de fecha»: texto por defecto y fechas anterior y nueva', () => {
+  const brand = { id: 'b', name: 'Morel', currency: 'DOP', bookingType: 'session' };
+  const t = emailTemplate(brand, 'moved');
+  assert.ok(t.enabled);
+  assert.match(t.subject, /Nueva fecha/);
+  const vars = emailVars({ date: '2026-11-21', time: '15:00', rescheduledFrom: { date: '2026-11-14', time: '10:00' }, client: { firstName: 'Ana' }, quote: {} }, brand);
+  const body = fillTemplate(t.body, vars);
+  assert.match(body, /Fecha anterior: sábado, 14 de noviembre de 2026/);
+  assert.match(body, /Nueva fecha: sábado, 21 de noviembre de 2026/);
+  assert.equal(emailTemplate({ ...brand, web: { emails: { moved: { enabled: false } } } }, 'moved').enabled, false);
+});

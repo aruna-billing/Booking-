@@ -42,6 +42,23 @@ const isEvent = (b: any) => b?.bookingType === 'event';
 export function defaultEmail(kind: string, brand: any) {
   const ev = isEvent(brand);
   const what = ev ? 'tu fecha' : 'tu sesión';
+  if (kind === 'moved') {
+    return {
+      subject: 'Nueva fecha para tu reserva · {marca}',
+      body: `Hola {nombre}:
+
+Cambiamos la fecha de ${what}. Estos son los datos nuevos:
+
+· Fecha anterior: {fecha_anterior}, a las {hora_anterior}
+· Nueva fecha: {fecha}, a las {hora}
+· Plan: {plan}
+
+Si algo no te cuadra, responde a este correo o escríbenos por WhatsApp: {whatsapp}.
+
+¡Nos vemos pronto!
+{marca}`,
+    };
+  }
   if (kind === 'confirmed') {
     return {
       subject: '¡Tu reserva está confirmada! · {marca}',
@@ -111,6 +128,8 @@ export function emailVars(r: any, brand: any) {
     saldo: money(r.quote?.balance ?? 0, cur),
     solicitud: String(r.id ?? '').replace(/^req-/, ''),
     whatsapp: brand.whatsappDisplay || '—',
+    fecha_anterior: r.rescheduledFrom?.date ? longDate(r.rescheduledFrom.date) : '',
+    hora_anterior: r.rescheduledFrom?.time ? hour(r.rescheduledFrom.time) : '',
   } as Record<string, string>;
 }
 
@@ -269,6 +288,9 @@ export function kindFor(type: string, record: any, old: any) {
   const before = old?.payload?.status ?? old?.status;
   if (type === 'INSERT' && status === 'pending_review') return 'review';
   if (type === 'UPDATE' && status === 'confirmed' && before !== 'confirmed') return 'confirmed';
+  // Cambio de fecha hecho desde el panel con «Avisar al cliente por correo».
+  const moved = record?.payload?.rescheduledFrom;
+  if (type === 'UPDATE' && status !== 'cancelled' && moved?.notify === true && moved?.at && moved.at !== old?.payload?.rescheduledFrom?.at) return 'moved';
   return null;
 }
 
@@ -300,11 +322,11 @@ export async function handler(req: Request): Promise<Response> {
       const cfg = await loadConfig(req);
       const brand = (cfg.brands ?? []).find((b: any) => b.id === body.brandId);
       if (!brand) return json({ error: 'Marca no encontrada.' }, 404);
-      const kind = body.kind === 'confirmed' ? 'confirmed' : 'review';
+      const kind = ['confirmed', 'moved'].includes(body.kind) ? body.kind : 'review';
       const plan = (cfg.plans ?? []).find((p: any) => p.brandId === brand.id && p.active !== false);
       const price = plan?.price ?? 5000;
       const deposit = Math.round((price * (brand.depositPercent ?? 50)) / 100);
-      const sample = { id: 'req-1234', client: { firstName: 'Ana', lastName: 'Pérez' }, planName: plan?.name ?? 'Plan', date: new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10), time: isEvent(brand) ? '15:00' : '10:00', currency: brand.currency, quote: { total: price, deposit, balance: price - deposit } };
+      const sample = { id: 'req-1234', client: { firstName: 'Ana', lastName: 'Pérez' }, planName: plan?.name ?? 'Plan', date: new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10), time: isEvent(brand) ? '15:00' : '10:00', currency: brand.currency, quote: { total: price, deposit, balance: price - deposit }, rescheduledFrom: { date: new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10), time: isEvent(brand) ? '15:00' : '10:00' } };
       const msg = buildEmail(brand, kind, { ...sample, acceptedTermsVersion: cfg.terms?.[brand.id]?.version }, cfg.terms?.[brand.id]);
       const id = await sendEmail({ to, subject: `[Prueba] ${msg.subject}`, html: msg.html, text: msg.text, fromName: brand.name, replyTo: brand.email || undefined });
       return json({ ok: true, id });

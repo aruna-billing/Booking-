@@ -12,6 +12,7 @@ import { formatLongDate, formatTime } from './date.js';
 export const EMAIL_KINDS = [
   { key: 'review', label: 'Reserva en revisión', when: 'Se envía al cliente en cuanto envía su solicitud.' },
   { key: 'confirmed', label: 'Reserva confirmada', when: 'Se envía cuando el equipo acepta la sesión o verifica el pago y confirma.' },
+  { key: 'moved', label: 'Cambio de fecha', when: 'Se envía cuando el equipo mueve la reserva a otra fecha y marca «Avisar al cliente por correo».' },
 ];
 
 export const EMAIL_VARS = [
@@ -26,11 +27,30 @@ export const EMAIL_VARS = [
   ['saldo', 'Saldo pendiente'],
   ['solicitud', 'Número de solicitud'],
   ['whatsapp', 'WhatsApp de la marca'],
+  ['fecha_anterior', 'Fecha anterior (correo «Cambio de fecha»)'],
+  ['hora_anterior', 'Hora anterior (correo «Cambio de fecha»)'],
 ];
 
 export function defaultEmail(kind, brand) {
   const ev = isEventBrand(brand);
   const what = ev ? 'tu fecha' : 'tu sesión';
+  if (kind === 'moved') {
+    return {
+      subject: 'Nueva fecha para tu reserva · {marca}',
+      body: `Hola {nombre}:
+
+Cambiamos la fecha de ${what}. Estos son los datos nuevos:
+
+· Fecha anterior: {fecha_anterior}, a las {hora_anterior}
+· Nueva fecha: {fecha}, a las {hora}
+· Plan: {plan}
+
+Si algo no te cuadra, responde a este correo o escríbenos por WhatsApp: {whatsapp}.
+
+¡Nos vemos pronto!
+{marca}`,
+    };
+  }
   if (kind === 'confirmed') {
     return {
       subject: '¡Tu reserva está confirmada! · {marca}',
@@ -91,6 +111,8 @@ export function emailVars(r, brand) {
     saldo: formatMoney(r.quote?.balance ?? 0, cur),
     solicitud: String(r.id ?? '').replace(/^req-/, ''),
     whatsapp: brand.whatsappDisplay || '—',
+    fecha_anterior: r.rescheduledFrom?.date ? formatLongDate(r.rescheduledFrom.date) : '',
+    hora_anterior: r.rescheduledFrom?.time ? formatTime(r.rescheduledFrom.time) : '',
   };
 }
 
@@ -112,7 +134,14 @@ export function sampleRequest(brand, plan) {
     time: isEventBrand(brand) ? '15:00' : '10:00',
     currency: brand.currency,
     quote: { total: price, deposit, balance: price - deposit },
+    rescheduledFrom: { date: shiftIso(iso, -7), time: isEventBrand(brand) ? '15:00' : '10:00' },
   };
+}
+
+function shiftIso(iso, days) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ───────────────────────── Pie del correo: contacto y términos ─────────────────────────

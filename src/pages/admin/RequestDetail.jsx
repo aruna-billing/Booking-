@@ -19,6 +19,7 @@ import { useAdmin, NoAccess } from '../../components/admin/AdminLayout.jsx';
 import { canSeeBrand } from '../../lib/auth.js';
 import { ClientTimeline } from '../../components/admin/ClientTimeline.jsx';
 import { WhatsAppModal } from '../../components/admin/WhatsAppModal.jsx';
+import { RescheduleModal } from '../../components/admin/RescheduleModal.jsx';
 
 const REJECT_PRESETS = ['El monto no coincide con el anticipo', 'Comprobante ilegible', 'No se encontró el depósito en la cuenta'];
 export const SESSION_REJECT_PRESETS = ['Fecha no disponible', 'Comprobante no válido', 'El monto no coincide con el anticipo', 'Datos incompletos'];
@@ -117,6 +118,9 @@ export function RequestDetail({ id }) {
         {can('payments.manage') && r.status !== 'cancelled' && (
           <Button variant="secondary" onClick={() => setDialog('payment')}>Agregar pago</Button>
         )}
+        {can('requests.manage') && r.status !== 'cancelled' && r.status !== 'completed' && (
+          <Button variant="secondary" onClick={() => setDialog('move')} data-testid="move-button">Cambiar fecha</Button>
+        )}
         <Button variant="ghost" onClick={() => setDialog('whatsapp')} data-testid="wa-button">Mensaje de WhatsApp</Button>
         {can('requests.manage') && r.status !== 'cancelled' && r.status !== 'completed' && (
           <Button variant="danger-ghost" onClick={() => setDialog('cancel')}>Cancelar reserva</Button>
@@ -137,7 +141,18 @@ export function RequestDetail({ id }) {
           <Card title="Reserva">
             <dl className="kv">
               <div><dt>Plan</dt><dd>{r.planName}</dd></div>
-              <div><dt>Fecha solicitada</dt><dd className="cap">{formatLongDate(r.date)}</dd></div>
+              <div>
+                <dt>{r.rescheduledFrom ? 'Fecha' : 'Fecha solicitada'}</dt>
+                <dd>
+                  <span className="cap">{formatLongDate(r.date)}</span>
+                  {r.rescheduledFrom && (
+                    <span className="muted small" data-testid="moved-from">
+                      {' '}· movida desde el {r.rescheduledFrom.date ? formatLongDate(r.rescheduledFrom.date) : '—'}
+                      {r.rescheduledFrom.time ? ` (${formatTime(r.rescheduledFrom.time)})` : ''}
+                    </span>
+                  )}
+                </dd>
+              </div>
               <div><dt>Horario</dt><dd>{formatTime(r.time)} – {formatTime(endTime(r.time, r.quote.durationMin ?? 60))}</dd></div>
               <div>
                 <dt>Duración</dt>
@@ -350,8 +365,26 @@ export function RequestDetail({ id }) {
         danger
         onConfirm={(reason) => api.cancelRequest(r.id, reason).then(() => toast('Reserva cancelada', 'red'))}
       />
-      {dialog === 'whatsapp' && (
-        <WhatsAppModal request={r} brand={brand} plan={db.plans.find((p) => p.id === r.planId)} onClose={() => setDialog(null)} canEditTemplates={can('web.manage')} />
+      {dialog === 'move' && (
+        <RescheduleModal
+          request={r}
+          brand={brand}
+          onClose={() => setDialog(null)}
+          onDone={({ notify }) => {
+            toast(notify ? 'Reserva movida. Le enviamos un correo al cliente.' : 'Reserva movida', 'green');
+            setDialog('whatsapp-moved');
+          }}
+        />
+      )}
+      {(dialog === 'whatsapp' || dialog === 'whatsapp-moved') && (
+        <WhatsAppModal
+          request={r}
+          brand={brand}
+          plan={db.plans.find((p) => p.id === r.planId)}
+          onClose={() => setDialog(null)}
+          canEditTemplates={can('web.manage')}
+          initialKind={dialog === 'whatsapp-moved' ? 'moved' : undefined}
+        />
       )}
       <ConfirmDialog
         open={dialog === 'delete'}
