@@ -80,3 +80,9 @@ Pulsa **Save**.
 - **Un minuto de margen:** la web consulta Google al abrir el paso de fecha y guarda la respuesta 1 minuto. Si alguien crea un evento en Google justo mientras un cliente está reservando esa hora, la reserva puede entrar igual. Al revisarla en el panel lo verás.
 - **Cambios en Google:** si mueves o borras en Google el evento de una reserva, la reserva del panel **no** cambia. Los cambios de reservas se hacen en el panel.
 - **Todas las marcas** usan el mismo calendario.
+- **Color:** los eventos de reservas salen en **rojo** («Tomate» en la paleta de Google), para distinguirlos de tus citas personales. Si cambias a mano el color de uno en Google, se queda el tuyo hasta que el sistema vuelva a actualizar esa reserva.
+
+### Activar el color rojo (si ya tenías Google Calendar funcionando)
+
+1. En Supabase → **Edge Functions → google-calendar**, pega el `supabase/functions/google-calendar/index.ts` nuevo y pulsa **Deploy**.
+2. En el panel → **Calendario**, pulsa **Sincronizar reservas** para que las reservas que ya estaban en Google también se pongan rojas.

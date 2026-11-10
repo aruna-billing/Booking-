@@ -209,6 +209,7 @@ export function eventFor(r: Record<string, any>, siteUrl = '') {
     start: { dateTime: local(start), timeZone: TZ },
     end: { dateTime: local(end), timeZone: TZ },
     status: 'confirmed',
+    colorId: '11', // Rojo («Tomate» en la paleta de Google Calendar)
     extendedProperties: { private: { bookingRequestId: r.id } },
   };
 }
