@@ -41,7 +41,8 @@ npm run build      # sitio estático en dist/
 - **Alertas:**
   - Entregas vencidas o próximas.
   - Sesiones pasadas sin marcar («¿Se realizó?»).
-  - Fotos sin enviar para elegir, o clientes que llevan 7 días o más sin elegir.
+  - Fotos sin enviar para elegir, y clientes con el plazo para elegir vencido.
+- **Plazo para elegir las fotos:** 1 día por defecto, contado desde que se le envían. Se cambia en Marcas («Plazo para elegir las fotos»). Sale en el seguimiento («Elegir antes del…») y en el mensaje de WhatsApp «Elegir fotos» (`{plazo_seleccion}`).
   - Aviso en el menú (número rojo), en el dashboard y en cada tarjeta.
 - **Rol Asistente:** ve Seguimientos y puede marcar fotos realizadas, la selección y las entregas. No puede deshacer pasos.
 

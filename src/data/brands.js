@@ -12,7 +12,8 @@ export const brands = [
     locale: 'es-DO',
     depositPercent: 30,
     bookingType: 'event', // una boda por día; se reserva el día completo
-    deliveryDays: 30, // días hábiles desde la boda hasta la entrega (se cambia en Marcas)
+    deliveryDays: 30, // días hábiles desde la selección de la pareja hasta la entrega (se cambia en Marcas)
+    selectionDays: 1, // días que tiene el cliente para elegir sus fotos desde que se le envían (se cambia en Marcas)
     published: true,
     whatsappDisplay: '',
     email: '',

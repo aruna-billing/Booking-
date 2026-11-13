@@ -4,7 +4,7 @@ import { Field } from '../ui/Field.jsx';
 import { Modal } from '../ui/Modal.jsx';
 import { Badge, useToast } from '../ui/misc.jsx';
 import { formatShortDate, formatTime, toISODate, today } from '../../lib/date.js';
-import { alertOf, confirmedAtOf, deliveryDueDate, isExpress, stageOf } from '../../lib/tracking.js';
+import { alertOf, confirmedAtOf, deliveryDueDate, isExpress, selectionDays, selectionDueDate, stageOf } from '../../lib/tracking.js';
 import * as api from '../../services/api.js';
 import { useDb } from '../../store/mockDb.js';
 import { WhatsAppModal } from './WhatsAppModal.jsx';
@@ -27,6 +27,7 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
   const idx = ['request', 'booked', 'selecting', 'shot', 'delivered'].indexOf(stage);
   const sel = r.selection;
   const days = isExpress(r, extras) ? 'Entrega exprés (72 h)' : `${brand?.deliveryDays ?? 10} días hábiles`;
+  const selPlazo = `${selectionDays(brand)} día${selectionDays(brand) === 1 ? '' : 's'}`;
   const legacyNoSelection = idx >= 3 && !sel; // marcada antes de existir la etapa de selección
   const sessionFuture = r.date > toISODate(today());
 
@@ -48,8 +49,8 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
         : sel?.doneAt
           ? sel.count != null ? `${sel.count} foto${sel.count === 1 ? '' : 's'} elegida${sel.count === 1 ? '' : 's'}` : 'Elegidas'
           : stage === 'selecting'
-            ? sel?.sentAt ? 'El cliente está eligiendo' : 'Por enviar al cliente'
-            : 'El cliente elige sus fotos',
+            ? sel?.sentAt ? `Elegir antes del ${formatShortDate(selectionDueDate(r, brand))}` : `Por enviar · ${selPlazo} para elegir`
+            : `${selPlazo} para elegir`,
     },
     {
       key: 'delivered',
@@ -274,7 +275,7 @@ export function SelectionSentDialog({ request: r, onClose, onSaved }) {
         <Field label="Enlace para elegir (opcional)" hint="La galería donde el cliente marca sus favoritas (Pixieset, Google Drive…). Empieza con https://">
           <input type="url" inputMode="url" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} data-testid="selection-url" />
         </Field>
-        <p className="muted small">Al guardar se abre el mensaje de WhatsApp «Elegir fotos» para enviárselo.</p>
+        <p className="muted small">Al guardar se abre el mensaje de WhatsApp «Elegir fotos» para enviárselo, con la fecha límite para elegir.</p>
       </div>
     </Modal>
   );

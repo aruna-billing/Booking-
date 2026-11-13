@@ -9,7 +9,7 @@ import { balanceDue } from '../../lib/finance.js';
 import { alertOf, trackingSummary } from '../../lib/tracking.js';
 
 // Avisos de Seguimientos en el dashboard, de más a menos urgente.
-const ATTENTION = ['overdue', 'shoot_unmarked', 'shoot_today', 'due_soon', 'select_waiting'];
+const ATTENTION = ['overdue', 'shoot_unmarked', 'select_waiting', 'shoot_today', 'due_soon', 'select_today'];
 
 export function Dashboard() {
   const db = useDb();

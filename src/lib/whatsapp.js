@@ -4,6 +4,7 @@
 import { isEventBrand } from '../data/brands.js';
 import { REQUEST_STATUS } from '../data/statuses.js';
 import { endTime } from './availability.js';
+import { selectionDueDate } from './tracking.js';
 import { formatLongDate, formatTime, today, toISODate } from './date.js';
 import { balanceDue, paidAmount } from './finance.js';
 import { formatDuration, formatMoney } from './format.js';
@@ -38,6 +39,7 @@ export const WA_VARS = [
   ['fecha_anterior', 'Fecha anterior (si se movió la reserva)'],
   ['hora_anterior', 'Hora anterior (si se movió la reserva)'],
   ['enlace_seleccion', 'Enlace para elegir las fotos (Seguimientos → Selección)'],
+  ['plazo_seleccion', 'Fecha límite para elegir las fotos (según los días de la marca)'],
 ];
 
 export function defaultWa(kind, brand) {
@@ -47,6 +49,7 @@ export function defaultWa(kind, brand) {
 ¡Tus fotos ya están listas para que elijas tus favoritas! 📸
 
 👉 {enlace_seleccion}
+⏳ Tienes hasta el {plazo_seleccion} para elegir.
 
 Tu plan incluye:
 {incluye}
@@ -127,6 +130,12 @@ export const waKindFor = (r) => {
   return r.status === 'confirmed' || r.status === 'completed' ? 'confirmed' : 'review';
 };
 
+/** Fecha límite para elegir: desde el envío o, si aún no se guardó, desde hoy. */
+function plazoSeleccion(r, brand) {
+  if (r.status !== 'completed' || !r.selection || r.selection.doneAt) return '';
+  return formatLongDate(selectionDueDate({ ...r, selection: { ...r.selection, sentAt: r.selection.sentAt ?? toISODate(today()) } }, brand));
+}
+
 const bullets = (list) => list.filter(Boolean).map((x) => `• ${x}`).join('\n');
 
 /** Valores de las variables para una solicitud. */
@@ -158,6 +167,7 @@ export function waVars(r, brand, plan) {
     fecha_anterior: r.rescheduledFrom?.date ? formatLongDate(r.rescheduledFrom.date) : '',
     hora_anterior: r.rescheduledFrom?.time ? formatTime(r.rescheduledFrom.time) : '',
     enlace_seleccion: r.selection?.url ?? '',
+    plazo_seleccion: plazoSeleccion(r, brand),
   };
 }
 

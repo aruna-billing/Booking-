@@ -4,7 +4,7 @@
 //
 // · Reservado: reserva confirmada, antes de la sesión.
 // · Selección: se marcó la sesión como hecha (status «completed», shotAt) y el
-//   cliente está eligiendo sus fotos. r.selection = { sentAt, url, doneAt, count, note }.
+//   cliente está eligiendo sus fotos; tiene brand.selectionDays días (1 por defecto) desde el envío. r.selection = { sentAt, url, doneAt, count, note }.
 // · En edición: el cliente ya eligió (selection.doneAt).
 // · Entregado: se entregaron las fotos (deliveredAt, enlace de galería).
 // La fecha límite de entrega = día en que el cliente eligió (o, si no hubo selección,
@@ -43,8 +43,17 @@ export function addBusinessDays(iso, n) {
   return toISODate(d);
 }
 
-/** Días que puede tardar el cliente en elegir antes de que se marque en ámbar. */
-export const SELECTION_WAIT_DAYS = 7;
+/** Días que tiene el cliente para elegir sus fotos (por marca, en Marcas; 1 por defecto). */
+export const selectionDays = (brand) => {
+  const n = Math.round(Number(brand?.selectionDays));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 60) : 1;
+};
+
+/** Fecha límite para elegir (ISO): día de envío + los días de la marca. null si aún no se envió. */
+export function selectionDueDate(r, brand) {
+  const sent = r.selection?.sentAt;
+  return sent ? toISODate(addDays(parseISODate(sent), selectionDays(brand))) : null;
+}
 
 export const isExpress = (r, extras = []) =>
   (r.quote?.lines ?? []).some((l) => extras.find((x) => x.id === l.id)?.expressDelivery);
@@ -62,7 +71,7 @@ export const daysFrom = (iso, ref = toISODate(today())) =>
 
 /**
  * Alerta de la tarjeta: { tone: 'red'|'amber'|'green'|'neutral', text, kind }.
- * kind: 'shoot_unmarked' | 'shoot_today' | 'shoot_soon' | 'shoot_later' | 'select_send' | 'selecting' | 'select_waiting'
+ * kind: 'shoot_unmarked' | 'shoot_today' | 'shoot_soon' | 'shoot_later' | 'select_send' | 'selecting' | 'select_today' | 'select_waiting' (vencida)
  *       | 'overdue' | 'due_soon' | 'editing' | 'delivered'
  */
 export function alertOf(r, brand, extras = [], ref = toISODate(today())) {
@@ -75,11 +84,12 @@ export function alertOf(r, brand, extras = [], ref = toISODate(today())) {
     return { kind: 'shoot_later', tone: 'neutral', text: `Sesión en ${d} días` };
   }
   if (st === 'selecting') {
-    const sent = r.selection?.sentAt;
-    if (!sent) return { kind: 'select_send', tone: 'amber', text: 'Enviar fotos para elegir' };
-    const d = -daysFrom(sent, ref);
-    if (d >= SELECTION_WAIT_DAYS) return { kind: 'select_waiting', tone: 'amber', text: `Sin elegir desde hace ${d} días` };
-    return { kind: 'selecting', tone: 'neutral', text: d <= 0 ? 'Eligiendo desde hoy' : `Eligiendo hace ${d} día${d === 1 ? '' : 's'}` };
+    const due = selectionDueDate(r, brand);
+    if (!due) return { kind: 'select_send', tone: 'amber', text: 'Enviar fotos para elegir' };
+    const d = daysFrom(due, ref);
+    if (d < 0) return { kind: 'select_waiting', tone: 'red', text: `Selección vencida hace ${-d} día${d === -1 ? '' : 's'}` };
+    if (d === 0) return { kind: 'select_today', tone: 'amber', text: 'Debe elegir hoy' };
+    return { kind: 'selecting', tone: 'neutral', text: d === 1 ? 'Tiene hasta mañana para elegir' : `Tiene ${d} días para elegir` };
   }
   if (st === 'shot') {
     const due = deliveryDueDate(r, brand, extras);

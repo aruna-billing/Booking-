@@ -8,11 +8,11 @@ import { WhatsAppModal } from '../../components/admin/WhatsAppModal.jsx';
 import { Badge, EmptyState, useToast } from '../../components/ui/misc.jsx';
 import { Link } from '../../lib/router.jsx';
 import { formatShortDate, formatTime, toISODate, today } from '../../lib/date.js';
-import { SELECTION_WAIT_DAYS, STAGES, alertOf, daysFrom, deliveryDueDate, stageOf, trackingSummary } from '../../lib/tracking.js';
+import { STAGES, alertOf, selectionDueDate, daysFrom, deliveryDueDate, stageOf, trackingSummary } from '../../lib/tracking.js';
 import { shortId } from '../../lib/format.js';
 import * as api from '../../services/api.js';
 
-const URGENT = ['overdue', 'due_soon', 'shoot_unmarked', 'shoot_today', 'select_send', 'select_waiting'];
+const URGENT = ['overdue', 'due_soon', 'shoot_unmarked', 'shoot_today', 'select_send', 'select_today', 'select_waiting'];
 
 /** Seguimientos: dónde va cada cliente desde que reserva hasta la entrega. */
 export function Tracking() {
@@ -58,7 +58,7 @@ export function Tracking() {
   const byStage = (key) => {
     let list = items.filter((x) => x.stage === key);
     if (key === 'booked') list.sort((a, b) => (a.r.date + a.r.time).localeCompare(b.r.date + b.r.time));
-    if (key === 'selecting') list.sort((a, b) => (a.r.selection?.sentAt ?? '').localeCompare(b.r.selection?.sentAt ?? '') || a.r.shotAt.localeCompare(b.r.shotAt));
+    if (key === 'selecting') list.sort((a, b) => (selectionDueDate(a.r, brandsById[a.r.brandId]) ?? '').localeCompare(selectionDueDate(b.r, brandsById[b.r.brandId]) ?? '') || a.r.shotAt.localeCompare(b.r.shotAt));
     if (key === 'shot') list.sort((a, b) => a.due.localeCompare(b.due));
     if (key === 'delivered') {
       list.sort((a, b) => b.r.deliveredAt.localeCompare(a.r.deliveredAt));
@@ -105,9 +105,11 @@ export function Tracking() {
           {r.planName} · {formatShortDate(r.date)} · {formatTime(r.time)}
         </p>
         {alert && <Badge tone={alert.tone}>{alert.text}</Badge>}
-        {x.stage === 'selecting' && r.selection?.url && (
+        {x.stage === 'selecting' && (r.selection?.sentAt || r.selection?.url) && (
           <p className="tcard__due small">
-            <a href={r.selection.url} target="_blank" rel="noopener noreferrer">Enlace para elegir</a>
+            {r.selection?.sentAt && <>Elegir antes del {formatShortDate(selectionDueDate(r, b))}</>}
+            {r.selection?.sentAt && r.selection?.url && ' · '}
+            {r.selection?.url && <a href={r.selection.url} target="_blank" rel="noopener noreferrer">Enlace para elegir</a>}
           </p>
         )}
         {x.stage === 'shot' && (
@@ -251,7 +253,7 @@ export function Tracking() {
       )}
 
       <p className="muted small">
-        El plazo de entrega se cuenta en días hábiles desde el día en que el cliente elige sus fotos (se configura en Marcas). Con el extra de entrega exprés, el plazo es de 72 horas. Si el cliente lleva {SELECTION_WAIT_DAYS} días o más sin elegir, se marca en ámbar.
+        El plazo de entrega se cuenta en días hábiles desde el día en que el cliente elige sus fotos (se configura en Marcas). Con el extra de entrega exprés, el plazo es de 72 horas. El plazo para que el cliente elija sus fotos (1 día por defecto) se cuenta desde que se las envías y también se cambia en Marcas.
       </p>
 
       {selecting?.kind === 'sent' && <SelectionSentDialog request={db.requests.find((x) => x.id === selecting.id)} onClose={() => setSelecting(null)} onSaved={() => setSelecting({ ...selecting, kind: 'whatsapp' })} />}

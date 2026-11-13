@@ -203,10 +203,12 @@ function BrandEditor({ brand, db }) {
             </Field>
           </div>
           <div className="form__row">
-            <Field label="Plazo de entrega (días hábiles)" hint="Desde el día de las fotos. Se usa en Seguimientos para avisar de entregas vencidas.">
+            <Field label="Plazo de entrega (días hábiles)" hint="Desde el día en que el cliente elige sus fotos. Se usa en Seguimientos para avisar de entregas vencidas.">
               <input type="number" min="1" max="60" value={b.deliveryDays ?? 10} onChange={(e) => set({ deliveryDays: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} data-testid="delivery-days" />
             </Field>
-            <span />
+            <Field label="Plazo para elegir las fotos (días)" hint="Desde que le envías las fotos al cliente para elegir. Pasado el plazo, Seguimientos lo marca como vencido.">
+              <input type="number" min="1" max="60" value={b.selectionDays ?? 1} onChange={(e) => set({ selectionDays: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} data-testid="selection-days" />
+            </Field>
           </div>
           <fieldset className="fieldset" data-testid="brand-form-options">
             <legend className="field__label">Formulario y pago</legend>

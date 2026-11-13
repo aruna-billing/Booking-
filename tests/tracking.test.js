@@ -1,7 +1,7 @@
 // Pruebas de etapas, plazos de entrega y alertas de Seguimientos.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addBusinessDays, alertOf, deliveryDueDate, stageOf, trackingSummary } from '../src/lib/tracking.js';
+import { addBusinessDays, alertOf, deliveryDueDate, selectionDueDate, stageOf, trackingSummary } from '../src/lib/tracking.js';
 
 const brand = { id: 'b', deliveryDays: 10 };
 const extras = [{ id: 'exp', expressDelivery: true }];
@@ -62,8 +62,14 @@ test('etapa de selección: entre el día de las fotos y la edición', () => {
   assert.equal(stageOf(shot), 'selecting');
   assert.equal(alertOf(shot, brand, extras, '2026-10-21').kind, 'select_send');
   const sent = { ...shot, selection: { sentAt: '2026-10-21' } };
-  assert.equal(alertOf(sent, brand, extras, '2026-10-23').kind, 'selecting');
-  assert.equal(alertOf(sent, brand, extras, '2026-10-30').kind, 'select_waiting');
+  // Plazo para elegir: 1 día por defecto desde el envío.
+  assert.equal(selectionDueDate(sent, brand), '2026-10-22');
+  assert.equal(alertOf(sent, brand, extras, '2026-10-21').kind, 'selecting');
+  assert.equal(alertOf(sent, brand, extras, '2026-10-22').kind, 'select_today');
+  assert.equal(alertOf(sent, brand, extras, '2026-10-24').text, 'Selección vencida hace 2 días');
+  // La marca puede dar más días.
+  assert.equal(selectionDueDate(sent, { ...brand, selectionDays: 5 }), '2026-10-26');
+  assert.equal(alertOf(sent, { ...brand, selectionDays: 5 }, extras, '2026-10-24').text, 'Tiene 2 días para elegir');
   const done = { ...shot, selection: { sentAt: '2026-10-21', doneAt: '2026-10-27', count: 12 } };
   assert.equal(stageOf(done), 'shot');
   // El plazo de entrega se cuenta desde la selección: 10 días hábiles desde el 27 oct.

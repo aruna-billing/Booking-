@@ -87,7 +87,7 @@ export function AdminLayout({ title, perm, children }) {
     pending: db.requests.filter((r) => inBrand(r) && r.status === 'pending_review').length,
     receipts: db.requests.filter((r) => inBrand(r) && r.paymentStatus === 'submitted').length,
     // Seguimientos que necesitan atención: entregas vencidas, sesiones pasadas sin marcar
-    // y clientes que llevan días sin elegir sus fotos.
+    // y clientes con el plazo para elegir sus fotos vencido.
     tracking: db.requests.filter((r) => {
       if (!inBrand(r)) return false;
       const k = alertOf(r, db.brands.find((b) => b.id === r.brandId), db.extras)?.kind;
