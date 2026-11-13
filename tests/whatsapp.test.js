@@ -78,3 +78,12 @@ test('mensaje «Cambio de fecha» con la fecha anterior y la nueva', () => {
   const ev = waMessage(r, { ...brand, bookingType: 'event' }, plan, 'moved');
   assert.match(ev, /Antes: sábado, 14 de noviembre de 2026\n/);
 });
+
+test('«Día de la sesión»: plantilla propia y elegida sola el día de la sesión', async () => {
+  const { today, toISODate } = await import('../src/lib/date.js');
+  const b = { id: 'b', name: 'Estudio', currency: 'DOP' };
+  const req = { id: 'req-1', status: 'confirmed', date: toISODate(today()), time: '10:00', client: { firstName: 'Ana' }, planName: 'Pro', quote: { total: 1000, durationMin: 60 }, payments: [] };
+  assert.equal(waKindFor(req), 'reminder');
+  assert.equal(waKindFor({ ...req, date: '2099-01-01' }), 'confirmed');
+  assert.match(waMessage(req, b, null, 'reminder'), /Llegó el día de tus fotos/);
+});

@@ -63,6 +63,10 @@ Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_i
 
 En una solicitud → **Cambiar fecha**: eliges el día y la hora nuevos en un calendario que muestra lo libre y lo ocupado (sin contar esta misma reserva). Puedes elegir un día cerrado, bloqueado u ocupado; el panel te avisa antes de guardar. El cambio queda en el historial, el calendario y la agenda pública se actualizan, y si usas Google Calendar el evento se mueve solo. Al terminar se abre el mensaje de WhatsApp «Cambio de fecha» para copiarlo, y si marcas «Avisar al cliente por correo» sale el correo «Cambio de fecha» (ver `CORREOS.md`). No hace falta volver a ejecutar el SQL.
 
+## Recordatorio «Día de la sesión» (opcional)
+
+Para que el cliente reciba un correo el día de sus fotos (o el día antes), ejecuta una vez `supabase/03_recordatorio.sql` en el SQL Editor y vuelve a desplegar la función `booking-emails`. Detalles en `CORREOS.md`, paso 7. El mensaje de WhatsApp «Día de la sesión» no necesita nada: ya está en el panel.
+
 ## Cupones de descuento
 
 En el panel → **Cupones**:

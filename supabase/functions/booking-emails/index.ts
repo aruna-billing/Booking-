@@ -5,6 +5,9 @@
 // de booking_requests:
 //   · nueva solicitud (INSERT, estado «en revisión») → correo «Reserva en revisión»
 //   · pasa a «confirmada» (UPDATE)                    → correo «Reserva confirmada»
+//   · se movió con «Avisar al cliente» (UPDATE)        → correo «Cambio de fecha»
+//   · el aviso programado marca el recordatorio (UPDATE, ver 03_recordatorio.sql)
+//                                                      → correo «Día de la sesión»
 // Los textos salen del panel (Personalización → Correos al cliente).
 //
 // También acepta { action: 'test', brandId, kind, to } desde el panel (solo
@@ -39,9 +42,38 @@ const env = (k: string): string => {
 
 const isEvent = (b: any) => b?.bookingType === 'event';
 
+export function reminderSettings(brand: any) {
+  const r = brand?.web?.emails?.reminder ?? {};
+  const h = Math.round(Number(r.hour));
+  return {
+    when: r.when === 'day_before' ? 'day_before' : 'same_day',
+    hour: Number.isFinite(h) && h >= 0 && h <= 23 && r.hour !== '' && r.hour != null ? h : 8,
+  };
+}
+
 export function defaultEmail(kind: string, brand: any) {
   const ev = isEvent(brand);
   const what = ev ? 'tu fecha' : 'tu sesión';
+  if (kind === 'reminder') {
+    const tomorrow = reminderSettings(brand).when === 'day_before';
+    const day = tomorrow ? 'Mañana' : 'Hoy';
+    return {
+      subject: `${day} es ${ev ? 'tu evento' : 'tu sesión de fotos'} 📸 · {marca}`,
+      body: `Hola {nombre}:
+
+¡${tomorrow ? 'Mañana' : 'Hoy'} es el día de tus fotos! Te esperamos.
+
+· Fecha: {fecha}
+· Hora: {hora}
+· Plan: {plan}
+· Saldo pendiente: {saldo} (se paga ${tomorrow ? 'mañana' : 'hoy'}, el día ${ev ? 'del evento' : 'de la sesión'})
+
+Si te surge algún imprevisto, escríbenos por WhatsApp: {whatsapp}.
+
+¡Nos vemos ${tomorrow ? 'mañana' : 'pronto'}!
+{marca}`,
+    };
+  }
   if (kind === 'moved') {
     return {
       subject: 'Nueva fecha para tu reserva · {marca}',
@@ -130,6 +162,7 @@ export function emailVars(r: any, brand: any) {
     whatsapp: brand.whatsappDisplay || '—',
     fecha_anterior: r.rescheduledFrom?.date ? longDate(r.rescheduledFrom.date) : '',
     hora_anterior: r.rescheduledFrom?.time ? hour(r.rescheduledFrom.time) : '',
+    cuando: reminderSettings(brand).when === 'day_before' ? 'mañana' : 'hoy',
   } as Record<string, string>;
 }
 
@@ -291,6 +324,9 @@ export function kindFor(type: string, record: any, old: any) {
   // Cambio de fecha hecho desde el panel con «Avisar al cliente por correo».
   const moved = record?.payload?.rescheduledFrom;
   if (type === 'UPDATE' && status !== 'cancelled' && moved?.notify === true && moved?.at && moved.at !== old?.payload?.rescheduledFrom?.at) return 'moved';
+  // Recordatorio del día de la sesión: lo marca el aviso programado (03_recordatorio.sql)
+  // en las columnas reminder_for / reminder_at (el panel nunca las toca).
+  if (type === 'UPDATE' && status === 'confirmed' && record?.reminder_at && record.reminder_at !== old?.reminder_at && String(record.reminder_for ?? '') === String(record.payload?.date ?? record.date ?? '')) return 'reminder';
   return null;
 }
 
@@ -322,7 +358,7 @@ export async function handler(req: Request): Promise<Response> {
       const cfg = await loadConfig(req);
       const brand = (cfg.brands ?? []).find((b: any) => b.id === body.brandId);
       if (!brand) return json({ error: 'Marca no encontrada.' }, 404);
-      const kind = ['confirmed', 'moved'].includes(body.kind) ? body.kind : 'review';
+      const kind = ['confirmed', 'moved', 'reminder'].includes(body.kind) ? body.kind : 'review';
       const plan = (cfg.plans ?? []).find((p: any) => p.brandId === brand.id && p.active !== false);
       const price = plan?.price ?? 5000;
       const deposit = Math.round((price * (brand.depositPercent ?? 50)) / 100);

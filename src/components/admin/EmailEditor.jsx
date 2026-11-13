@@ -3,13 +3,15 @@ import { Card, Toggle } from './parts.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Field } from '../ui/Field.jsx';
 import { useToast } from '../ui/misc.jsx';
-import { EMAIL_KINDS, EMAIL_VARS, LOGO_WIDTH, TERMS_MODES, defaultEmail, emailFooter, emailLogo, emailLogoSource, emailVars, fillTemplate, footerNote, footerSettings, headerSettings, NOTE_EXAMPLE, NOTE_MAX, sampleRequest } from '../../lib/emails.js';
+import { EMAIL_KINDS, EMAIL_VARS, LOGO_WIDTH, REMINDER_WHEN, TERMS_MODES, defaultEmail, reminderSettings, emailFooter, emailLogo, emailLogoSource, emailVars, fillTemplate, footerNote, footerSettings, headerSettings, NOTE_EXAMPLE, NOTE_MAX, sampleRequest } from '../../lib/emails.js';
 import { useDb } from '../../store/mockDb.js';
 import { ImageUpload } from '../ui/ImageUpload.jsx';
 
 const EMAIL_LOGO_OPTS = { accept: ['image/png', 'image/jpeg'], maxInputMB: 5, maxSide: 800, keepTransparency: true, quality: 0.9 };
 import { LIVE } from '../../lib/mode.js';
 import { sendTestEmail } from '../../services/cloud.js';
+
+const formatHour = (h) => `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? 'a. m.' : 'p. m.'}`;
 
 /** Correos automáticos al cliente: activar, editar asunto y mensaje, vista previa y prueba. */
 export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
@@ -18,15 +20,16 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
   const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
   const saved = value[kind] ?? {};
-  const def = defaultEmail(kind, brand);
+  const draftBrand = { ...brand, web: { ...brand.web, emails: value } };
+  const def = defaultEmail(kind, draftBrand);
   const set = (patch) => onChange({ ...value, [kind]: { ...saved, ...patch } });
-  const vars = emailVars(sampleRequest({ ...brand }, plan), brand);
+  const vars = emailVars(sampleRequest({ ...brand }, plan), draftBrand);
+  const rem = reminderSettings(draftBrand);
   const subject = fillTemplate(saved.subject?.trim() ? saved.subject : def.subject, vars);
   const body = fillTemplate(saved.body?.trim() ? saved.body : def.body, vars);
   const enabled = saved.enabled !== false;
   const info = EMAIL_KINDS.find((k) => k.key === kind);
   const terms = useDb().terms?.[brand.id];
-  const draftBrand = { ...brand, web: { ...brand.web, emails: value } };
   const foot = footerSettings(draftBrand);
   const setFoot = (patch) => onChange({ ...value, footer: { ...foot, ...patch } });
   const head = headerSettings(draftBrand);
@@ -68,6 +71,25 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
         <div className="form">
           <Toggle checked={enabled} onChange={(v) => set({ enabled: v })} label={enabled ? 'Activo: se envía' : 'Apagado: no se envía'} />
           <p className="muted small">{info.when}</p>
+          {kind === 'reminder' && (
+            <div className="email-editor__head" data-testid="reminder-settings">
+              <Field label="Cuándo">
+                <select value={rem.when} onChange={(e) => set({ when: e.target.value })} data-testid="reminder-when">
+                  {REMINDER_WHEN.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                </select>
+              </Field>
+              <Field label="A qué hora">
+                <select value={rem.hour} onChange={(e) => set({ hour: Number(e.target.value) })} data-testid="reminder-hour">
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{formatHour(h)}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
+          {kind === 'reminder' && rem.when === 'same_day' && (
+            <p className="muted small">Si la sesión empieza antes de esa hora, ese día no se envía. Elige una hora temprano o «El día antes».</p>
+          )}
           <Field label="Asunto" counter={saved.subject ? <button type="button" className="link-btn small" onClick={() => set({ subject: '' })}>Restaurar</button> : null}>
             <input value={saved.subject ?? ''} placeholder={def.subject} onChange={(e) => set({ subject: e.target.value })} data-testid="email-subject" />
           </Field>
@@ -84,7 +106,7 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
           </details>
 
           <fieldset className="email-editor__footer">
-            <legend>Logo y pie (los dos correos)</legend>
+            <legend>Logo y pie (todos los correos)</legend>
             <ImageUpload
               label="Logo para correos (opcional)"
               hint="PNG o JPG. Si no subes uno, se usa el logo de Marcas."
@@ -127,7 +149,7 @@ export function EmailEditor({ brand, plan, value, onChange, dirty, number }) {
             )}
             <Field
               label="Nota al final del correo"
-              hint="Sale en los dos correos, al final, aunque el pie esté apagado. Vacío = sin nota."
+              hint="Sale en todos los correos, al final, aunque el pie esté apagado. Vacío = sin nota."
               counter={!foot.note ? <button type="button" className="link-btn small" onClick={() => setFoot({ note: NOTE_EXAMPLE })} data-testid="email-note-example">Usar «mensaje automático»</button> : null}
             >
               <textarea rows={2} maxLength={NOTE_MAX} value={foot.note} placeholder={NOTE_EXAMPLE} onChange={(e) => setFoot({ note: e.target.value })} data-testid="email-footer-note" />

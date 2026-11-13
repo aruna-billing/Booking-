@@ -1714,3 +1714,93 @@
 .move-side > .link-btn {
   justify-self: start;
 }
+
+/* ───────── Plan y extras que eligió el cliente (detalle de solicitud) ───────── */
+.chosen {
+  display: grid;
+  gap: 8px;
+  padding: 0 0 16px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.chosen__eyebrow,
+.chosen__label {
+  margin: 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.chosen__label {
+  margin-top: 6px;
+}
+.chosen__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.15;
+}
+.chosen__desc {
+  margin: 0;
+  color: var(--muted);
+}
+.chosen__includes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.chosen__includes li {
+  display: flex;
+  gap: 10px;
+}
+.chosen__includes li::before {
+  content: '—';
+  color: var(--red, var(--accent));
+  flex: none;
+}
+.chosen__meta {
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  color: var(--muted);
+}
+.chosen__meta strong {
+  color: var(--ink);
+  font-size: 1.0625rem;
+}
+.chosen__extras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.chosen__extras li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.chosen__extras li + li {
+  border-top: 1px solid var(--line);
+}
+.chosen__extras li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.chosen__extra-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.chosen__extras .num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

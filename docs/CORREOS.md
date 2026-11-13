@@ -1,14 +1,15 @@
 # Correos automáticos al cliente
 
-El sistema envía tres correos al cliente:
+El sistema envía cuatro correos al cliente:
 
 | Correo | Cuándo se envía |
 |---|---|
 | **Reserva en revisión** | En cuanto el cliente envía su solicitud con el comprobante. |
 | **Reserva confirmada** | Cuando el equipo acepta la sesión o verifica el pago y confirma. |
 | **Cambio de fecha** | Cuando el equipo mueve una reserva a otra fecha (Solicitudes → **Cambiar fecha**) con la casilla «Avisar al cliente por correo» marcada. Lleva la fecha anterior y la nueva. |
+| **Día de la sesión** | Recordatorio automático a las reservas **confirmadas**: el mismo día de la sesión o el día antes, a la hora que elijas en el panel (por defecto, el mismo día a las 8:00 a. m.). Necesita el paso 7 de esta guía. |
 
-> **Si ya tenías la función instalada:** para el correo «Cambio de fecha», vuelve a pegar el `index.ts` nuevo en **Edge Functions → booking-emails** y pulsa **Deploy**. El webhook y los secretos no cambian.
+> **Si ya tenías la función instalada:** para los correos «Cambio de fecha» y «Día de la sesión», vuelve a pegar el `index.ts` nuevo en **Edge Functions → booking-emails** y pulsa **Deploy**. El webhook y los secretos no cambian.
 
 Los textos se editan en el panel → **Personalización → Correos al cliente**. Cada correo se puede apagar, y los datos (nombre, plan, fecha, hora, montos…) se rellenan solos.
 
@@ -94,6 +95,22 @@ El nombre que ve el cliente es el de la marca. Si responde al correo, la respues
 1. Panel → **Personalización** → tu marca → **Correos al cliente**: revisa los textos y pulsa **Guardar**.
 2. En la misma tarjeta, escribe tu correo y pulsa **Enviar prueba**. Debe llegarte un correo con «[Prueba]» en el asunto.
 3. Prueba real: haz una reserva en la web con tu correo. Debe llegarte **Reserva en revisión**. Confírmala en el panel y debe llegarte **Reserva confirmada**. Luego cancélala.
+
+## 7. Recordatorio «Día de la sesión» (opcional)
+
+Este correo no lo dispara una acción del panel sino el reloj, así que necesita un paso más (una sola vez):
+
+1. Supabase → **SQL Editor → New query**.
+2. Pega **todo** el archivo `supabase/03_recordatorio.sql` y pulsa **Run**. Al final debe salir una fila `recordatorio-dia-sesion`.
+
+Qué hace: cada hora, en punto, revisa las reservas confirmadas. Cuando llega el día elegido (el de la sesión o el anterior) y la hora elegida, marca la reserva; esa marca pasa por el **mismo webhook** del paso 5 y la función envía el correo con el texto del panel. No lleva contraseñas ni claves.
+
+- **Cuándo y a qué hora:** panel → Personalización → Correos al cliente → pestaña **Día de la sesión**. Con «El mismo día», si la sesión empieza antes de la hora elegida, ese día no se envía; elige una hora temprano o «El día antes».
+- Cada reserva recibe **un solo** recordatorio por fecha. Si la mueves de día, recibe otro para la fecha nueva.
+- En el historial de la solicitud queda «Recordatorio «Día de la sesión» enviado por correo (automático)».
+- Si apagas el correo en el panel, no se envía nada.
+- Para quitarlo del todo: en SQL Editor, `select cron.unschedule('recordatorio-dia-sesion');`.
+- Si Supabase dice que **pg_cron** no está disponible: **Database → Extensions**, busca `pg_cron`, actívalo y vuelve a ejecutar el archivo.
 
 ## Si no llega
 

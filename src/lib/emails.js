@@ -2,7 +2,7 @@
 // La función de Supabase «booking-emails» usa las mismas reglas (ver su index.ts);
 // esta copia sirve para la vista previa del panel.
 //
-// Se guardan en brand.web.emails = { review: { enabled, subject, body }, confirmed: {...} }.
+// Se guardan en brand.web.emails = { review: { enabled, subject, body }, confirmed, moved, reminder: {..., when, hour} }.
 // Asunto o mensaje vacíos = el texto por defecto.
 
 import { isEventBrand } from '../data/brands.js';
@@ -13,7 +13,22 @@ export const EMAIL_KINDS = [
   { key: 'review', label: 'Reserva en revisión', when: 'Se envía al cliente en cuanto envía su solicitud.' },
   { key: 'confirmed', label: 'Reserva confirmada', when: 'Se envía cuando el equipo acepta la sesión o verifica el pago y confirma.' },
   { key: 'moved', label: 'Cambio de fecha', when: 'Se envía cuando el equipo mueve la reserva a otra fecha y marca «Avisar al cliente por correo».' },
+  { key: 'reminder', label: 'Día de la sesión', when: 'Recordatorio automático a las reservas confirmadas, el día de la sesión (o el día antes) a la hora que elijas. Necesita el paso «03_recordatorio.sql» (ver docs/CORREOS.md).' },
 ];
+
+// Cuándo sale el recordatorio: brand.web.emails.reminder = { when: 'same_day' | 'day_before', hour: 0–23 }.
+export const REMINDER_WHEN = [
+  ['same_day', 'El mismo día de la sesión'],
+  ['day_before', 'El día antes'],
+];
+export function reminderSettings(brand) {
+  const r = brand?.web?.emails?.reminder ?? {};
+  const h = Math.round(Number(r.hour));
+  return {
+    when: r.when === 'day_before' ? 'day_before' : 'same_day',
+    hour: Number.isFinite(h) && h >= 0 && h <= 23 && r.hour !== '' && r.hour != null ? h : 8,
+  };
+}
 
 export const EMAIL_VARS = [
   ['nombre', 'Nombre del cliente'],
@@ -29,11 +44,32 @@ export const EMAIL_VARS = [
   ['whatsapp', 'WhatsApp de la marca'],
   ['fecha_anterior', 'Fecha anterior (correo «Cambio de fecha»)'],
   ['hora_anterior', 'Hora anterior (correo «Cambio de fecha»)'],
+  ['cuando', '«hoy» o «mañana» (correo «Día de la sesión»)'],
 ];
 
 export function defaultEmail(kind, brand) {
   const ev = isEventBrand(brand);
   const what = ev ? 'tu fecha' : 'tu sesión';
+  if (kind === 'reminder') {
+    const tomorrow = reminderSettings(brand).when === 'day_before';
+    const day = tomorrow ? 'Mañana' : 'Hoy';
+    return {
+      subject: `${day} es ${ev ? 'tu evento' : 'tu sesión de fotos'} 📸 · {marca}`,
+      body: `Hola {nombre}:
+
+¡${tomorrow ? 'Mañana' : 'Hoy'} es el día de tus fotos! Te esperamos.
+
+· Fecha: {fecha}
+· Hora: {hora}
+· Plan: {plan}
+· Saldo pendiente: {saldo} (se paga ${tomorrow ? 'mañana' : 'hoy'}, el día ${ev ? 'del evento' : 'de la sesión'})
+
+Si te surge algún imprevisto, escríbenos por WhatsApp: {whatsapp}.
+
+¡Nos vemos ${tomorrow ? 'mañana' : 'pronto'}!
+{marca}`,
+    };
+  }
   if (kind === 'moved') {
     return {
       subject: 'Nueva fecha para tu reserva · {marca}',
@@ -113,6 +149,7 @@ export function emailVars(r, brand) {
     whatsapp: brand.whatsappDisplay || '—',
     fecha_anterior: r.rescheduledFrom?.date ? formatLongDate(r.rescheduledFrom.date) : '',
     hora_anterior: r.rescheduledFrom?.time ? formatTime(r.rescheduledFrom.time) : '',
+    cuando: reminderSettings(brand).when === 'day_before' ? 'mañana' : 'hoy',
   };
 }
 
@@ -150,7 +187,7 @@ function shiftIso(iso, days) {
 
 export const TERMS_MODES = [
   ['confirmed', 'Completos solo en «Reserva confirmada»'],
-  ['both', 'Completos en los dos correos'],
+  ['both', 'Completos en todos los correos'],
   ['none', 'Solo la línea con la versión aceptada'],
 ];
 

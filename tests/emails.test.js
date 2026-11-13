@@ -84,3 +84,15 @@ test('correo «Cambio de fecha»: texto por defecto y fechas anterior y nueva', 
   assert.match(body, /Nueva fecha: sábado, 21 de noviembre de 2026/);
   assert.equal(emailTemplate({ ...brand, web: { emails: { moved: { enabled: false } } } }, 'moved').enabled, false);
 });
+
+test('recordatorio «Día de la sesión»: mismo día por defecto, o el día antes', async () => {
+  const { reminderSettings } = await import('../src/lib/emails.js');
+  assert.deepEqual(reminderSettings(brand), { when: 'same_day', hour: 8 });
+  assert.match(defaultEmail('reminder', brand).subject, /^Hoy es tu sesión/);
+  assert.equal(emailVars(r, brand).cuando, 'hoy');
+  const before = { ...brand, web: { emails: { reminder: { when: 'day_before', hour: 18 } } } };
+  assert.deepEqual(reminderSettings(before), { when: 'day_before', hour: 18 });
+  assert.match(defaultEmail('reminder', before).body, /¡Mañana es el día de tus fotos!/);
+  assert.equal(emailVars(r, before).cuando, 'mañana');
+  assert.equal(reminderSettings({ web: { emails: { reminder: { hour: 99 } } } }).hour, 8);
+});

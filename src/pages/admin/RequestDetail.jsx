@@ -20,6 +20,7 @@ import { canSeeBrand } from '../../lib/auth.js';
 import { ClientTimeline } from '../../components/admin/ClientTimeline.jsx';
 import { WhatsAppModal } from '../../components/admin/WhatsAppModal.jsx';
 import { RescheduleModal } from '../../components/admin/RescheduleModal.jsx';
+import { isEventBrand } from '../../data/brands.js';
 
 const REJECT_PRESETS = ['El monto no coincide con el anticipo', 'Comprobante ilegible', 'No se encontró el depósito en la cuenta'];
 export const SESSION_REJECT_PRESETS = ['Fecha no disponible', 'Comprobante no válido', 'El monto no coincide con el anticipo', 'Datos incompletos'];
@@ -139,8 +140,8 @@ export function RequestDetail({ id }) {
       <div className="detail-grid">
         <div className="detail-col">
           <Card title="Reserva">
+            <ChosenPlan request={r} brand={brand} plan={db.plans.find((p) => p.id === r.planId)} extras={db.extras} />
             <dl className="kv">
-              <div><dt>Plan</dt><dd>{r.planName}</dd></div>
               <div>
                 <dt>{r.rescheduledFrom ? 'Fecha' : 'Fecha solicitada'}</dt>
                 <dd>
@@ -404,5 +405,75 @@ export function RequestDetail({ id }) {
         }}
       />
     </>
+  );
+}
+
+/** Lo que eligió el cliente: el plan como lo vio en la web (incluye, duración, precio) y sus extras. */
+function ChosenPlan({ request: r, brand, plan, extras }) {
+  const cur = r.currency;
+  const q = r.quote ?? {};
+  const event = isEventBrand(brand);
+  const base = q.baseDurationMin ?? plan?.durationMin;
+  const chosen = (q.lines ?? []).filter((l) => l.source !== 'admin');
+  const charges = (q.lines ?? []).filter((l) => l.source === 'admin');
+  const info = (l) => extras.find((x) => x.id === l.id);
+  return (
+    <section className="chosen" aria-label="Plan y extras que eligió el cliente" data-testid="chosen-plan">
+      <p className="chosen__eyebrow">Plan elegido</p>
+      <h3 className="chosen__name">{r.planName}</h3>
+      {plan?.description && <p className="chosen__desc">{plan.description}</p>}
+      {plan?.deliverables?.length > 0 && (
+        <>
+          <p className="chosen__label">Incluye</p>
+          <ul className="chosen__includes" data-testid="chosen-includes">
+            {plan.deliverables.map((d) => <li key={d}>{d}</li>)}
+          </ul>
+        </>
+      )}
+      <p className="chosen__meta">
+        {base ? <span>{formatDuration(base)} {event ? 'de cobertura' : 'de sesión'}</span> : null}
+        <strong>{formatMoney(q.planPrice ?? plan?.price ?? 0, cur)}</strong>
+      </p>
+      {!plan && <p className="muted small">Este plan ya no está en «Planes y extras»: se muestra lo que quedó guardado en la solicitud.</p>}
+      {plan && q.planPrice != null && plan.price !== q.planPrice && (
+        <p className="muted small">El precio del plan cambió después: el cliente reservó a {formatMoney(q.planPrice, cur)} (hoy cuesta {formatMoney(plan.price, cur)}).</p>
+      )}
+
+      <p className="chosen__label">{chosen.length ? `Extras que eligió (${chosen.length})` : 'Extras'}</p>
+      {chosen.length === 0 ? (
+        <p className="muted small" data-testid="chosen-no-extras">No eligió extras.</p>
+      ) : (
+        <ul className="chosen__extras" data-testid="chosen-extras">
+          {chosen.map((l) => (
+            <li key={l.id}>
+              <div>
+                <span className="chosen__extra-name">{l.name}</span>
+                <span className="muted small">
+                  {l.quantity > 1 ? `${l.quantity} × ${formatMoney(l.unitPrice ?? l.total / l.quantity, cur)}` : 'Cantidad: 1'}
+                  {l.minutes > 0 && ` · suma ${formatDuration(l.minutes)}`}
+                </span>
+                {info(l)?.description && <span className="muted small chosen__extra-desc">{info(l).description}</span>}
+              </div>
+              <span className="num">{formatMoney(l.total, cur)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {charges.length > 0 && (
+        <>
+          <p className="chosen__label">Añadido por el equipo ({charges.length})</p>
+          <ul className="chosen__extras">
+            {charges.map((l) => (
+              <li key={l.id}>
+                <div>
+                  <span className="chosen__extra-name">{l.name}{l.quantity > 1 ? ` × ${l.quantity}` : ''}</span>
+                </div>
+                <span className="num">{formatMoney(l.total, cur)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }

@@ -1,10 +1,10 @@
 // Mensajes de WhatsApp para copiar y enviar al cliente desde el panel.
-// Plantillas por marca en brand.web.whatsapp = { confirmed, review } (vacío = predeterminada).
+// Plantillas por marca en brand.web.whatsapp = { confirmed, review, moved, reminder } (vacío = predeterminada).
 
 import { isEventBrand } from '../data/brands.js';
 import { REQUEST_STATUS } from '../data/statuses.js';
 import { endTime } from './availability.js';
-import { formatLongDate, formatTime } from './date.js';
+import { formatLongDate, formatTime, today, toISODate } from './date.js';
 import { balanceDue, paidAmount } from './finance.js';
 import { formatDuration, formatMoney } from './format.js';
 
@@ -12,6 +12,7 @@ export const WA_KINDS = [
   { key: 'confirmed', label: 'Reserva confirmada', when: 'Para clientes con el pago comprobado y la reserva confirmada.' },
   { key: 'review', label: 'Solicitud recibida', when: 'Para solicitudes que aún están en revisión.' },
   { key: 'moved', label: 'Cambio de fecha', when: 'Para avisar al cliente después de mover su reserva a otra fecha.' },
+  { key: 'reminder', label: 'Día de la sesión', when: 'Para recordarle al cliente que llegó el día de sus fotos.' },
 ];
 
 export const WA_VARS = [
@@ -38,6 +39,20 @@ export const WA_VARS = [
 ];
 
 export function defaultWa(kind, brand) {
+  if (kind === 'reminder') {
+    const ev = isEventBrand(brand);
+    return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
+
+¡Llegó el día de tus fotos! 📸 Te esperamos.
+
+📅 Fecha: {fecha}
+🕒 Hora: {hora}${ev ? '' : ' a {hora_fin}'}
+📸 Plan: {plan}
+
+⏳ Pendiente: {pendiente} {pendiente_nota}
+
+Cualquier imprevisto, nos escribes por aquí. ¡Nos vemos!`;
+  }
   if (kind === 'moved') {
     const ev = isEventBrand(brand);
     return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
@@ -92,7 +107,10 @@ export function waTemplate(brand, kind) {
 }
 
 /** Qué plantilla corresponde a una solicitud. */
-export const waKindFor = (r) => (r.status === 'confirmed' || r.status === 'completed' ? 'confirmed' : 'review');
+export const waKindFor = (r) => {
+  if (r.status === 'confirmed' && r.date === toISODate(today())) return 'reminder'; // hoy es la sesión
+  return r.status === 'confirmed' || r.status === 'completed' ? 'confirmed' : 'review';
+};
 
 const bullets = (list) => list.filter(Boolean).map((x) => `• ${x}`).join('\n');
 
