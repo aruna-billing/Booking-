@@ -56,3 +56,22 @@ test('resumen', () => {
   assert.equal(s.delivered, 1);
   assert.equal(s.deliveredMonth, 1);
 });
+
+test('etapa de selección: entre el día de las fotos y la edición', () => {
+  const shot = req({ status: 'completed', shotAt: '2026-10-20', selection: {} });
+  assert.equal(stageOf(shot), 'selecting');
+  assert.equal(alertOf(shot, brand, extras, '2026-10-21').kind, 'select_send');
+  const sent = { ...shot, selection: { sentAt: '2026-10-21' } };
+  assert.equal(alertOf(sent, brand, extras, '2026-10-23').kind, 'selecting');
+  assert.equal(alertOf(sent, brand, extras, '2026-10-30').kind, 'select_waiting');
+  const done = { ...shot, selection: { sentAt: '2026-10-21', doneAt: '2026-10-27', count: 12 } };
+  assert.equal(stageOf(done), 'shot');
+  // El plazo de entrega se cuenta desde la selección: 10 días hábiles desde el 27 oct.
+  assert.equal(deliveryDueDate(done, brand, extras), '2026-11-10');
+  // Sesiones marcadas antes de la etapa (sin selection) siguen en edición.
+  assert.equal(stageOf(req({ status: 'completed', shotAt: '2026-10-20' })), 'shot');
+  const s = trackingSummary([shot, sent, done], { b: brand }, extras, '2026-10-30');
+  assert.equal(s.selecting, 2);
+  assert.equal(s.selectWaiting, 2);
+  assert.equal(s.shot, 1);
+});

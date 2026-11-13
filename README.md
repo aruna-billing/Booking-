@@ -22,25 +22,28 @@ npm run build      # sitio estático en dist/
 
 ## Seguimientos (lo nuevo)
 
-**Etapas:** Solicitud → **Reservado** → **Fotos realizadas** (en edición) → **Entregado**
+**Etapas:** Solicitud → **Reservado** → **Selección** (el cliente elige sus fotos) → **En edición** → **Entregado**
 
 - **Línea de tiempo** arriba del detalle de cada solicitud:
-  - Muestra la fecha de cada paso: recibida, reservada, día de las fotos y entrega (o fecha límite).
+  - Muestra la fecha de cada paso: recibida, reservada, día de las fotos, selección y entrega (o fecha límite).
   - Incluye el botón de la siguiente acción.
   - El administrador puede deshacer el último paso.
 - **Sección «Seguimientos»** en el menú:
-  - **Resumen:** sesiones de la semana, en edición, entregas vencidas, sesiones sin marcar y entregadas en el mes.
-  - **Tablero** con tres columnas (en celular, pestañas) y **vista de lista**.
+  - **Resumen:** sesiones de la semana, eligiendo fotos, en edición, entregas vencidas, sesiones sin marcar y entregadas en el mes.
+  - **Tablero** con cuatro columnas (en celular, pestañas) y **vista de lista**.
   - **Filtros:** búsqueda y «Solo lo urgente». La columna Entregado muestra los últimos 30 días, con opción de ver todas.
   - **Acciones:**
-    - «Fotos realizadas»: disponible desde el día de la sesión.
+    - «Fotos realizadas»: disponible desde el día de la sesión. El cliente pasa a **Selección**.
+    - «Enviada para elegir»: fecha y enlace de la galería para elegir (opcional). Al guardar se abre el mensaje de WhatsApp «Elegir fotos».
+    - «Ya eligió»: fecha, cuántas fotos eligió y una nota. El cliente pasa a **En edición**.
     - «Marcar entregado»: pide fecha y enlace de la galería; el enlace debe empezar con `https://`.
-- **Plazo de entrega:** se cuenta en días hábiles desde el día de las fotos (10 por defecto; se cambia en Marcas). Con un extra marcado como «Entrega exprés», el plazo es de 72 horas.
+- **Plazo de entrega:** se cuenta en días hábiles desde el día en que el cliente eligió sus fotos (o desde el día de las fotos en sesiones marcadas antes de existir la etapa de selección) (10 por defecto; se cambia en Marcas). Con un extra marcado como «Entrega exprés», el plazo es de 72 horas.
 - **Alertas:**
   - Entregas vencidas o próximas.
   - Sesiones pasadas sin marcar («¿Se realizó?»).
+  - Fotos sin enviar para elegir, o clientes que llevan 7 días o más sin elegir.
   - Aviso en el menú (número rojo), en el dashboard y en cada tarjeta.
-- **Rol Asistente:** ve Seguimientos y puede marcar fotos realizadas y entregas. No puede deshacer pasos.
+- **Rol Asistente:** ve Seguimientos y puede marcar fotos realizadas, la selección y las entregas. No puede deshacer pasos.
 
 ## Rutas
 

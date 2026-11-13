@@ -1,5 +1,5 @@
 // Mensajes de WhatsApp para copiar y enviar al cliente desde el panel.
-// Plantillas por marca en brand.web.whatsapp = { confirmed, review, moved, reminder } (vacío = predeterminada).
+// Plantillas por marca en brand.web.whatsapp = { confirmed, review, moved, reminder, selection } (vacío = predeterminada).
 
 import { isEventBrand } from '../data/brands.js';
 import { REQUEST_STATUS } from '../data/statuses.js';
@@ -13,6 +13,7 @@ export const WA_KINDS = [
   { key: 'review', label: 'Solicitud recibida', when: 'Para solicitudes que aún están en revisión.' },
   { key: 'moved', label: 'Cambio de fecha', when: 'Para avisar al cliente después de mover su reserva a otra fecha.' },
   { key: 'reminder', label: 'Día de la sesión', when: 'Para recordarle al cliente que llegó el día de sus fotos.' },
+  { key: 'selection', label: 'Elegir fotos', when: 'Para enviarle al cliente sus fotos y que elija sus favoritas (etapa «Selección» de Seguimientos).' },
 ];
 
 export const WA_VARS = [
@@ -36,9 +37,22 @@ export const WA_VARS = [
   ['whatsapp', 'WhatsApp de la marca'],
   ['fecha_anterior', 'Fecha anterior (si se movió la reserva)'],
   ['hora_anterior', 'Hora anterior (si se movió la reserva)'],
+  ['enlace_seleccion', 'Enlace para elegir las fotos (Seguimientos → Selección)'],
 ];
 
 export function defaultWa(kind, brand) {
+  if (kind === 'selection') {
+    return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
+
+¡Tus fotos ya están listas para que elijas tus favoritas! 📸
+
+👉 {enlace_seleccion}
+
+Tu plan incluye:
+{incluye}
+
+Cuando termines de elegir, avísanos por aquí y empezamos la edición. ¡Gracias!`;
+  }
   if (kind === 'reminder') {
     const ev = isEventBrand(brand);
     return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
@@ -109,6 +123,7 @@ export function waTemplate(brand, kind) {
 /** Qué plantilla corresponde a una solicitud. */
 export const waKindFor = (r) => {
   if (r.status === 'confirmed' && r.date === toISODate(today())) return 'reminder'; // hoy es la sesión
+  if (r.status === 'completed' && !r.deliveredAt && r.selection && !r.selection.doneAt) return 'selection'; // eligiendo fotos
   return r.status === 'confirmed' || r.status === 'completed' ? 'confirmed' : 'review';
 };
 
@@ -142,6 +157,7 @@ export function waVars(r, brand, plan) {
     whatsapp: brand.whatsappDisplay || '',
     fecha_anterior: r.rescheduledFrom?.date ? formatLongDate(r.rescheduledFrom.date) : '',
     hora_anterior: r.rescheduledFrom?.time ? formatTime(r.rescheduledFrom.time) : '',
+    enlace_seleccion: r.selection?.url ?? '',
   };
 }
 

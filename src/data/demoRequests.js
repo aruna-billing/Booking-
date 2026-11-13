@@ -19,8 +19,8 @@ const seeds = [
   { id: 'req-1044', brandId: B, created: -40, status: 'confirmed', payment: 'verified', first: 'Gabriela', last: 'Núñez', planId: 'el-editorial', extras: { 'el-x-padres': 2 }, day: 5, time: '10:00', notes: 'Boda íntima frente al mar en Samaná.', insp: 4 },
   { id: 'req-1043', brandId: B, created: -60, status: 'confirmed', payment: 'verified', first: 'José', last: 'Tavárez', planId: 'el-clasica', extras: { 'el-x-expres': 1 }, day: 33, time: '15:00', notes: '', insp: 1 },
   { id: 'req-1049', brandId: B, created: -90, status: 'confirmed', payment: 'verified', first: 'Jorge', last: 'Liriano', planId: 'el-clasica', extras: {}, day: -1, time: '16:00', notes: '', insp: 0 },
-  // Boda realizada · en edición
-  { id: 'req-1040', brandId: B, created: -120, status: 'completed', payment: 'verified', first: 'Daniela', last: 'Cruz', planId: 'el-intima', extras: {}, day: -9, time: '10:00', notes: '', insp: 1, shot: -9 },
+  // Boda realizada · selección (la pareja elige sus fotos) y en edición
+  { id: 'req-1040', brandId: B, created: -120, status: 'completed', payment: 'verified', first: 'Daniela', last: 'Cruz', planId: 'el-intima', extras: {}, day: -9, time: '10:00', notes: '', insp: 1, shot: -9, sel: { sent: -7 } },
   { id: 'req-1036', brandId: B, created: -150, status: 'completed', payment: 'verified', first: 'Manuel', last: 'Rosario', planId: 'el-clasica', extras: { 'el-x-hora': 1 }, day: -50, time: '15:00', notes: '', insp: 0, shot: -50 },
   // Entregado
   { id: 'req-1038', brandId: B, created: -200, status: 'completed', payment: 'verified', first: 'Natalia', last: 'Guzmán', planId: 'el-editorial', extras: {}, day: -60, time: '10:00', notes: '', insp: 0, shot: -60, delivered: -20 },
@@ -107,6 +107,17 @@ export function buildDemoRequests() {
       confirmedAt: ['confirmed', 'completed'].includes(s.status) ? createdAt : null,
       shotAt: s.shot !== undefined ? toISODate(addDays(base, s.shot)) : null,
       deliveredAt: s.delivered !== undefined ? toISODate(addDays(base, s.delivered)) : null,
+      ...(s.sel
+        ? {
+            selection: {
+              sentAt: s.sel.sent !== undefined ? toISODate(addDays(base, s.sel.sent)) : null,
+              url: s.sel.sent !== undefined ? `https://galeria.example/elegir/${s.id}` : '',
+              doneAt: s.sel.done !== undefined ? toISODate(addDays(base, s.sel.done)) : null,
+              count: s.sel.count ?? null,
+              note: '',
+            },
+          }
+        : {}),
       galleryUrl: s.delivered !== undefined ? `https://galeria.example/${s.id}` : '',
       history,
       internalNotes: [],

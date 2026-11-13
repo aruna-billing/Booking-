@@ -6,21 +6,28 @@ import { Badge, useToast } from '../ui/misc.jsx';
 import { formatShortDate, formatTime, toISODate, today } from '../../lib/date.js';
 import { alertOf, confirmedAtOf, deliveryDueDate, isExpress, stageOf } from '../../lib/tracking.js';
 import * as api from '../../services/api.js';
+import { useDb } from '../../store/mockDb.js';
+import { WhatsAppModal } from './WhatsAppModal.jsx';
 
 const fmtDate = (iso) => (iso ? formatShortDate(iso.slice(0, 10)) : '');
 
 /**
- * Línea de tiempo del cliente: Solicitud → Reservado → Día de las fotos → Entrega.
+ * Línea de tiempo del cliente: Solicitud → Reservado → Día de las fotos → Selección → Entrega.
  * Muestra la fecha de cada paso y la siguiente acción.
  */
 export function ClientTimeline({ request: r, brand, extras, can }) {
   const toast = useToast();
+  const db = useDb();
   const [delivering, setDelivering] = useState(false);
+  const [selDialog, setSelDialog] = useState(null); // 'sent' | 'done' | 'whatsapp'
   const [busy, setBusy] = useState(false);
   const stage = stageOf(r);
   const due = deliveryDueDate(r, brand, extras);
   const alert = alertOf(r, brand, extras);
-  const idx = ['request', 'booked', 'shot', 'delivered'].indexOf(stage);
+  const idx = ['request', 'booked', 'selecting', 'shot', 'delivered'].indexOf(stage);
+  const sel = r.selection;
+  const days = isExpress(r, extras) ? 'Entrega exprés (72 h)' : `${brand?.deliveryDays ?? 10} días hábiles`;
+  const legacyNoSelection = idx >= 3 && !sel; // marcada antes de existir la etapa de selección
   const sessionFuture = r.date > toISODate(today());
 
   const steps = [
@@ -33,21 +40,33 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
       note: idx >= 2 ? 'Realizadas' : idx === 1 ? (alert?.kind === 'shoot_unmarked' ? '¿Se realizó?' : 'Programada') : 'Programada',
     },
     {
+      key: 'selecting',
+      label: 'Selección',
+      date: sel?.doneAt ? fmtDate(sel.doneAt) : sel?.sentAt ? `Enviadas ${fmtDate(sel.sentAt)}` : '',
+      note: legacyNoSelection
+        ? 'Sin selección'
+        : sel?.doneAt
+          ? sel.count != null ? `${sel.count} foto${sel.count === 1 ? '' : 's'} elegida${sel.count === 1 ? '' : 's'}` : 'Elegidas'
+          : stage === 'selecting'
+            ? sel?.sentAt ? 'El cliente está eligiendo' : 'Por enviar al cliente'
+            : 'El cliente elige sus fotos',
+    },
+    {
       key: 'delivered',
       label: 'Entrega',
-      date: r.deliveredAt ? fmtDate(r.deliveredAt) : `Vence ${formatShortDate(due)}`,
-      note: r.deliveredAt ? 'Entregadas' : isExpress(r, extras) ? 'Entrega exprés (72 h)' : `${brand?.deliveryDays ?? 10} días hábiles`,
+      date: r.deliveredAt ? fmtDate(r.deliveredAt) : idx >= 3 ? `Vence ${formatShortDate(due)}` : 'Tras la selección',
+      note: r.deliveredAt ? 'Entregadas' : days,
     },
   ];
   // Pasos completados según la etapa; el siguiente es el «paso actual».
-  const doneCount = { request: 1, booked: 2, shot: 3, delivered: 4 }[stage] ?? 0;
+  const doneCount = { request: 1, booked: 2, selecting: 3, shot: 4, delivered: 5 }[stage] ?? 0;
   const stateOf = (i) => (stage === null ? 'off' : i < doneCount ? 'done' : i === doneCount ? 'current' : 'todo');
 
   const doShot = async () => {
     setBusy(true);
     try {
       await api.markShot(r.id);
-      toast('Fotos realizadas: el cliente pasa a edición', 'green');
+      toast('Fotos realizadas: el cliente pasa a selección', 'green');
     } catch (e) {
       toast(e.message, 'red');
     }
@@ -95,9 +114,35 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
             {sessionFuture && can('tracking.update') && <span className="small muted">Disponible desde el día de la sesión.</span>}
           </>
         )}
+        {stage === 'selecting' && (
+          <>
+            {alert && <Badge tone={alert.tone}>{alert.text}</Badge>}
+            {can('tracking.update') && (
+              <>
+                <Button size="sm" variant={sel?.sentAt ? 'secondary' : 'primary'} onClick={() => setSelDialog('sent')} data-testid="selection-sent">
+                  {sel?.sentAt ? 'Editar envío' : 'Enviar para elegir'}
+                </Button>
+                <Button size="sm" variant={sel?.sentAt ? 'primary' : 'secondary'} onClick={() => setSelDialog('done')} data-testid="selection-done">
+                  Ya eligió sus fotos
+                </Button>
+              </>
+            )}
+            {sel?.url && (
+              <span className="small ctl__gallery">
+                Para elegir: <a href={sel.url} target="_blank" rel="noopener noreferrer">{sel.url.replace(/^https?:\/\//, '')}</a>
+              </span>
+            )}
+          </>
+        )}
         {stage === 'shot' && (
           <>
             {alert && <Badge tone={alert.tone}>{alert.text}</Badge>}
+            {sel?.doneAt && (
+              <span className="small muted" data-testid="selection-summary">
+                {sel.count != null ? `Eligió ${sel.count} foto${sel.count === 1 ? '' : 's'}` : 'Ya eligió'} el {fmtDate(sel.doneAt)}
+                {sel.note ? ` · ${sel.note}` : ''}
+              </span>
+            )}
             {can('tracking.update') && (
               <Button size="sm" onClick={() => setDelivering(true)} data-testid="mark-delivered">
                 Marcar como entregado
@@ -116,7 +161,7 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
             {r.deliveryNote && <span className="small muted">{r.deliveryNote}</span>}
           </>
         )}
-        {can('requests.manage') && (stage === 'shot' || stage === 'delivered') && (
+        {can('requests.manage') && (stage === 'selecting' || stage === 'shot' || stage === 'delivered') && (
           <button type="button" className="link-btn small ctl__undo" onClick={undo} data-testid="undo-step">
             Deshacer último paso
           </button>
@@ -124,6 +169,18 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
       </div>
 
       {delivering && <DeliverDialog request={r} onClose={() => setDelivering(false)} />}
+      {selDialog === 'sent' && <SelectionSentDialog request={r} onClose={() => setSelDialog(null)} onSaved={() => setSelDialog('whatsapp')} />}
+      {selDialog === 'done' && <SelectionDoneDialog request={r} onClose={() => setSelDialog(null)} />}
+      {selDialog === 'whatsapp' && (
+        <WhatsAppModal
+          request={r}
+          brand={brand}
+          plan={db.plans.find((p) => p.id === r.planId)}
+          initialKind="selection"
+          canEditTemplates={can('web.manage')}
+          onClose={() => setSelDialog(null)}
+        />
+      )}
     </section>
   );
 }
@@ -173,6 +230,99 @@ export function DeliverDialog({ request: r, onClose }) {
         </Field>
         <Field label="Nota">
           <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: se enviaron 12 fotos por WhatsApp" />
+        </Field>
+      </div>
+    </Modal>
+  );
+}
+
+/** Envío de las fotos para elegir: fecha y enlace (opcional). Al guardar se abre el mensaje de WhatsApp. */
+export function SelectionSentDialog({ request: r, onClose, onSaved }) {
+  const todayIso = toISODate(today());
+  const [date, setDate] = useState(r.selection?.sentAt ?? todayIso);
+  const [url, setUrl] = useState(r.selection?.url ?? '');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.markSelectionSent(r.id, { date, url });
+      (onSaved ?? onClose)();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Fotos para elegir · ${r.client.firstName} ${r.client.lastName}`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button onClick={save} loading={busy} data-testid="selection-sent-save">Guardar</Button>
+        </>
+      }
+    >
+      <div className="form">
+        {error && <p className="callout callout--red" role="alert">{error}</p>}
+        <Field label="Fecha de envío" required>
+          <input type="date" value={date} min={r.shotAt ?? undefined} max={todayIso} onChange={(e) => setDate(e.target.value)} data-testid="selection-sent-date" />
+        </Field>
+        <Field label="Enlace para elegir (opcional)" hint="La galería donde el cliente marca sus favoritas (Pixieset, Google Drive…). Empieza con https://">
+          <input type="url" inputMode="url" placeholder="https://" value={url} onChange={(e) => setUrl(e.target.value)} data-testid="selection-url" />
+        </Field>
+        <p className="muted small">Al guardar se abre el mensaje de WhatsApp «Elegir fotos» para enviárselo.</p>
+      </div>
+    </Modal>
+  );
+}
+
+/** El cliente ya eligió: fecha, cuántas fotos y una nota. Pasa a edición. */
+export function SelectionDoneDialog({ request: r, onClose }) {
+  const toast = useToast();
+  const todayIso = toISODate(today());
+  const [date, setDate] = useState(todayIso);
+  const [count, setCount] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.markSelectionDone(r.id, { date, count, note });
+      toast(`${r.client.firstName} ya eligió: pasa a edición`, 'green');
+      onClose();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Selección recibida · ${r.client.firstName} ${r.client.lastName}`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button onClick={save} loading={busy} data-testid="selection-done-save">Pasar a edición</Button>
+        </>
+      }
+    >
+      <div className="form">
+        {error && <p className="callout callout--red" role="alert">{error}</p>}
+        <Field label="Fecha en que eligió" required hint="Desde este día se cuenta el plazo de entrega.">
+          <input type="date" value={date} min={r.shotAt ?? undefined} max={todayIso} onChange={(e) => setDate(e.target.value)} data-testid="selection-done-date" />
+        </Field>
+        <Field label="Fotos elegidas (opcional)">
+          <input type="number" inputMode="numeric" min={0} step={1} value={count} onChange={(e) => setCount(e.target.value)} data-testid="selection-count" />
+        </Field>
+        <Field label="Nota (opcional)">
+          <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: pidió 3 fotos extra en blanco y negro" data-testid="selection-note" />
         </Field>
       </div>
     </Modal>

@@ -802,14 +802,49 @@ const todayIso = () => {
 };
 const URL_RE = /^https?:\/\/[^\s]+\.[^\s]+$/i;
 
-/** Marca que la sesión se realizó (pasa a «Fotos realizadas · en edición»). */
+/** Marca que la sesión se realizó: pasa a «Selección» (el cliente elige sus fotos). */
 export async function markShot(id) {
   guard('tracking.update', id);
   await delay(250);
   const r = getState().requests.find((x) => x.id === id);
   if (!r || r.status !== 'confirmed') throw new Error('Solo se pueden marcar sesiones reservadas.');
   if (r.date > todayIso()) throw new Error('La sesión todavía no ha llegado. Podrás marcarla el día de la sesión.');
-  await updateRequest(id, { status: 'completed', shotAt: r.date <= todayIso() ? r.date : todayIso() }, 'Fotos realizadas');
+  await updateRequest(id, { status: 'completed', shotAt: r.date <= todayIso() ? r.date : todayIso(), selection: {} }, 'Fotos realizadas: pasa a selección');
+}
+
+const inSelection = (r) => r && r.status === 'completed' && !r.deliveredAt && r.selection && !r.selection.doneAt;
+
+/** Guarda que se le enviaron al cliente las fotos para elegir (fecha y enlace opcional). */
+export async function markSelectionSent(id, { date, url = '' } = {}) {
+  guard('tracking.update', id);
+  await delay(200);
+  const r = getState().requests.find((x) => x.id === id);
+  if (!inSelection(r)) throw new Error('Esta sesión no está en selección.');
+  const d = date || todayIso();
+  if (d > todayIso()) throw new Error('La fecha de envío no puede ser futura.');
+  if (r.shotAt && d < r.shotAt) throw new Error('El envío no puede ser antes del día de las fotos.');
+  const link = url.trim();
+  if (link && !URL_RE.test(link)) throw new Error('El enlace debe empezar con https://');
+  const again = Boolean(r.selection.sentAt);
+  await updateRequest(id, { selection: { ...r.selection, sentAt: d, url: link } }, `${again ? 'Envío para elegir actualizado' : 'Fotos enviadas al cliente para elegir'}${link ? ' (enlace guardado)' : ''}`);
+}
+
+/** El cliente ya eligió: pasa a «En edición» y empieza a contar el plazo de entrega. */
+export async function markSelectionDone(id, { date, count = '', note = '' } = {}) {
+  guard('tracking.update', id);
+  await delay(200);
+  const r = getState().requests.find((x) => x.id === id);
+  if (!inSelection(r)) throw new Error('Esta sesión no está en selección.');
+  const d = date || todayIso();
+  if (d > todayIso()) throw new Error('La fecha no puede ser futura.');
+  if (r.shotAt && d < r.shotAt) throw new Error('La selección no puede ser antes del día de las fotos.');
+  const n = String(count).trim() === '' ? null : Math.floor(Number(count));
+  if (n !== null && (!Number.isFinite(n) || n < 0 || n > 10000)) throw new Error('Escribe un número de fotos válido.');
+  await updateRequest(
+    id,
+    { selection: { ...r.selection, doneAt: d, count: n, note: note.trim() } },
+    `Selección recibida${n !== null ? `: ${n} foto${n === 1 ? '' : 's'}` : ''} · pasa a edición`
+  );
 }
 
 /** Marca la entrega de las fotos al cliente. */
@@ -818,20 +853,23 @@ export async function markDelivered(id, { date, galleryUrl = '', note = '' } = {
   await delay(250);
   const r = getState().requests.find((x) => x.id === id);
   if (!r || r.status !== 'completed' || r.deliveredAt) throw new Error('Primero marca la sesión como realizada.');
+  if (inSelection(r)) throw new Error('Primero marca que el cliente ya eligió sus fotos.');
   const d = date || todayIso();
   if (d > todayIso()) throw new Error('La fecha de entrega no puede ser futura.');
   if (r.shotAt && d < r.shotAt) throw new Error('La entrega no puede ser antes del día de las fotos.');
+  if (r.selection?.doneAt && d < r.selection.doneAt) throw new Error('La entrega no puede ser antes de la selección.');
   const url = galleryUrl.trim();
   if (url && !URL_RE.test(url)) throw new Error('El enlace de la galería debe empezar con https://');
   await updateRequest(id, { deliveredAt: d, galleryUrl: url, deliveryNote: note.trim() }, `Fotos entregadas al cliente${url ? ' (enlace de galería guardado)' : ''}`);
 }
 
-/** Deshace la última etapa (entregado → en edición → reservado). Solo administradores. */
+/** Deshace la última etapa (entregado → en edición → selección → reservado). Solo administradores. */
 export async function undoTrackingStep(id) {
   guard('requests.manage', id);
   await delay(200);
   const r = getState().requests.find((x) => x.id === id);
   if (r.deliveredAt) return updateRequest(id, { deliveredAt: null, galleryUrl: '', deliveryNote: '' }, 'Entrega deshecha: vuelve a «en edición»');
-  if (r.status === 'completed') return updateRequest(id, { status: 'confirmed', shotAt: null }, 'Fotos realizadas deshecho: vuelve a «reservado»');
+  if (r.selection?.doneAt) return updateRequest(id, { selection: { ...r.selection, doneAt: null, count: null, note: '' } }, 'Selección deshecha: vuelve a «selección»');
+  if (r.status === 'completed') return updateRequest(id, { status: 'confirmed', shotAt: null, selection: null }, 'Fotos realizadas deshecho: vuelve a «reservado»');
   throw new Error('No hay ninguna etapa para deshacer.');
 }

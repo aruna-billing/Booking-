@@ -8,6 +8,9 @@ import { formatMoney } from '../../lib/format.js';
 import { balanceDue } from '../../lib/finance.js';
 import { alertOf, trackingSummary } from '../../lib/tracking.js';
 
+// Avisos de Seguimientos en el dashboard, de más a menos urgente.
+const ATTENTION = ['overdue', 'shoot_unmarked', 'shoot_today', 'due_soon', 'select_waiting'];
+
 export function Dashboard() {
   const db = useDb();
   const { brandFilter } = useAdmin();
@@ -32,8 +35,8 @@ export function Dashboard() {
   const track = trackingSummary(reqs, brandsById, db.extras);
   const urgent = reqs
     .map((r) => ({ r, a: alertOf(r, brandsById[r.brandId], db.extras) }))
-    .filter((x) => ['overdue', 'shoot_unmarked', 'due_soon', 'shoot_today'].includes(x.a?.kind))
-    .sort((x, y) => ['overdue', 'shoot_unmarked', 'shoot_today', 'due_soon'].indexOf(x.a.kind) - ['overdue', 'shoot_unmarked', 'shoot_today', 'due_soon'].indexOf(y.a.kind));
+    .filter((x) => ATTENTION.includes(x.a?.kind))
+    .sort((x, y) => ATTENTION.indexOf(x.a.kind) - ATTENTION.indexOf(y.a.kind));
   const recent = reqs
     .flatMap((r) => r.history.map((h) => ({ ...h, request: r })))
     .sort((a, b) => b.at.localeCompare(a.at))
@@ -108,6 +111,7 @@ export function Dashboard() {
       <Card title="Seguimientos" actions={<Link to="/admin/seguimientos" className="small">Abrir seguimientos</Link>}>
         <div className="dash-track">
           <div><span className="muted small">Sesiones esta semana</span><strong>{track.sessionsWeek}</strong></div>
+          <div className={track.selectWaiting ? 'is-amber' : ''}><span className="muted small">Eligiendo fotos</span><strong>{track.selecting}</strong></div>
           <div><span className="muted small">En edición</span><strong>{track.shot}</strong></div>
           <div className={track.overdue ? 'is-red' : ''}><span className="muted small">Entregas vencidas</span><strong>{track.overdue}</strong></div>
           <div className={track.unmarked ? 'is-amber' : ''}><span className="muted small">Sesiones sin marcar</span><strong>{track.unmarked}</strong></div>

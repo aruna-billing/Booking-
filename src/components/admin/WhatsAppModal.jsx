@@ -71,7 +71,7 @@ export function WhatsAppModal({ request: r, brand, plan, onClose, canEditTemplat
       }
     >
       <div className="seg" role="radiogroup" aria-label="Qué mensaje">
-        {WA_KINDS.filter((k) => k.key !== 'moved' || r.rescheduledFrom).map((k) => (
+        {WA_KINDS.filter((k) => (k.key !== 'moved' || r.rescheduledFrom) && (k.key !== 'selection' || (r.status === 'completed' && r.selection))).map((k) => (
           <label key={k.key} className={`seg__opt ${kind === k.key ? 'is-on' : ''}`}>
             <input type="radio" name="wa-kind" checked={kind === k.key} onChange={() => pick(k.key)} data-testid={`wa-kind-${k.key}`} />
             {k.label}

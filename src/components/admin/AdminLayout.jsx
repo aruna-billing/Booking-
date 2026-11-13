@@ -86,11 +86,12 @@ export function AdminLayout({ title, perm, children }) {
   const counts = {
     pending: db.requests.filter((r) => inBrand(r) && r.status === 'pending_review').length,
     receipts: db.requests.filter((r) => inBrand(r) && r.paymentStatus === 'submitted').length,
-    // Seguimientos que necesitan atención: entregas vencidas y sesiones pasadas sin marcar.
+    // Seguimientos que necesitan atención: entregas vencidas, sesiones pasadas sin marcar
+    // y clientes que llevan días sin elegir sus fotos.
     tracking: db.requests.filter((r) => {
       if (!inBrand(r)) return false;
       const k = alertOf(r, db.brands.find((b) => b.id === r.brandId), db.extras)?.kind;
-      return k === 'overdue' || k === 'shoot_unmarked';
+      return k === 'overdue' || k === 'shoot_unmarked' || k === 'select_waiting';
     }).length,
   };
   const isActive = (to) => (to === '/admin' ? path === '/admin' : path.startsWith(to));
