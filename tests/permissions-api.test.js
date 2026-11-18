@@ -125,3 +125,13 @@ test('impresión: solo con material físico, tras la selección; bloquea la entr
   assert.equal(r.print, null);
   assert.equal(r.status, 'completed'); // sigue en edición
 });
+
+test('enlace de la galería: se puede guardar después de entregar', async () => {
+  setCurrentUser('u-asist');
+  const id = getState().requests.find((x) => x.deliveredAt).id;
+  await assert.rejects(api.saveGalleryUrl(id, 'galeria sin protocolo'), /https/);
+  await api.saveGalleryUrl(id, 'https://estudio.pixieset.com/cliente/');
+  assert.equal(getState().requests.find((x) => x.id === id).galleryUrl, 'https://estudio.pixieset.com/cliente/');
+  assert.match(getState().requests.find((x) => x.id === id).history.at(-1).label, /Enlace de la galería guardado/);
+  await assert.rejects(api.saveGalleryUrl('req-1044', 'https://x.example/y'), /aún no está entregada/);
+});

@@ -966,6 +966,17 @@ export async function markDelivered(id, { date, galleryUrl = '', note = '' } = {
   await updateRequest(id, { deliveredAt: d, galleryUrl: url, deliveryNote: note.trim() }, `Fotos entregadas al cliente${url ? ' (enlace de galería guardado)' : ''}`);
 }
 
+/** Guarda o cambia el enlace de la galería de una sesión ya entregada (p. ej. al pegarlo en el mensaje de WhatsApp). */
+export async function saveGalleryUrl(id, url) {
+  guard('tracking.update', id);
+  const r = getState().requests.find((x) => x.id === id);
+  if (!r?.deliveredAt) throw new Error('Esta sesión aún no está entregada.');
+  const link = String(url ?? '').trim();
+  if (link && !URL_RE.test(link)) throw new Error('El enlace de la galería debe empezar con https://');
+  if (link === (r.galleryUrl ?? '')) return;
+  await updateRequest(id, { galleryUrl: link }, link ? 'Enlace de la galería guardado' : 'Enlace de la galería quitado');
+}
+
 /** Deshace la última etapa (entregado → material listo → en impresión → en edición → selección → reservado). Solo administradores. */
 export async function undoTrackingStep(id) {
   guard('requests.manage', id);

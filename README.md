@@ -64,6 +64,14 @@ línea de tiempo tiene un paso más entre Selección y Entrega:
   (`orderedAt`, `note`, `readyAt`) dentro de la reserva; no requiere cambios en Supabase.
 - «Deshacer último paso» también deshace estos dos pasos.
 
+## Mensaje de WhatsApp «Fotos entregadas»
+
+Al marcar una sesión como entregada se abre el mensaje «Fotos entregadas» (plantilla editable en
+Personalización → marca → Mensajes de WhatsApp, variable `{enlace_galeria}`). Arriba del texto hay
+un campo **Enlace de la galería** con botón **Pegar**: el enlace aparece solo en el mensaje y, al
+copiarlo o abrir WhatsApp, se guarda en la reserva. Se puede reabrir con «Mensaje de entrega».
+Pixieset no tiene API pública oficial, por eso el enlace se pega a mano.
+
 ## Cargos propuestos por el asistente
 
 - En el detalle de una solicitud, el asistente pulsa **«Proponer cargo»**: elige un extra del catálogo (con cantidad) o escribe un concepto y un monto, y puede dejar una nota para el administrador.

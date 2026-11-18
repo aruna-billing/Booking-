@@ -1,5 +1,5 @@
 // Mensajes de WhatsApp para copiar y enviar al cliente desde el panel.
-// Plantillas por marca en brand.web.whatsapp = { confirmed, review, moved, reminder, selection } (vacío = predeterminada).
+// Plantillas por marca en brand.web.whatsapp = { confirmed, review, moved, reminder, selection, delivered } (vacío = predeterminada).
 
 import { isEventBrand } from '../data/brands.js';
 import { REQUEST_STATUS } from '../data/statuses.js';
@@ -15,7 +15,11 @@ export const WA_KINDS = [
   { key: 'moved', label: 'Cambio de fecha', when: 'Para avisar al cliente después de mover su reserva a otra fecha.' },
   { key: 'reminder', label: 'Día de la sesión', when: 'Para recordarle al cliente que llegó el día de sus fotos.' },
   { key: 'selection', label: 'Elegir fotos', when: 'Para enviarle al cliente sus fotos y que elija sus favoritas (etapa «Selección» de Seguimientos).' },
+  { key: 'delivered', label: 'Fotos entregadas', when: 'Para enviarle al cliente el enlace de sus fotos ya listas (al marcar la entrega en Seguimientos). En el mensaje hay un campo para pegar el enlace.' },
 ];
+
+/** Variable del enlace que se pega en el mensaje, según el tipo de mensaje. */
+export const WA_LINK_VAR = { selection: 'enlace_seleccion', delivered: 'enlace_galeria' };
 
 export const WA_VARS = [
   ['nombre', 'Nombre del cliente'],
@@ -41,9 +45,21 @@ export const WA_VARS = [
   ['hora_anterior', 'Hora anterior (si se movió la reserva)'],
   ['enlace_seleccion', 'Enlace para elegir las fotos (Seguimientos → Selección)'],
   ['plazo_seleccion', 'Fecha límite para elegir las fotos (según los días de la marca)'],
+  ['enlace_galeria', 'Enlace de la galería con las fotos entregadas (se pega al enviar el mensaje)'],
 ];
 
 export function defaultWa(kind, brand) {
+  if (kind === 'delivered') {
+    return `¡Hola {nombre}! 👋
+
+¡Aquí te comparto tus fotos, ya están listas! 📸
+
+👉 {enlace_galeria}
+
+No les tomes captura de pantalla: se eliminan del link ⏰
+
+Debes descargarlas en 1 semana. Este link solo tiene vigencia durante 10 días.`;
+  }
   if (kind === 'selection') {
     return `¡Hola {nombre}! 👋 Te escribimos de {marca}.
 
@@ -133,6 +149,7 @@ export function waTemplate(brand, kind) {
 /** Qué plantilla corresponde a una solicitud. */
 export const waKindFor = (r) => {
   if (r.status === 'confirmed' && r.date === toISODate(today())) return 'reminder'; // hoy es la sesión
+  if (r.status === 'completed' && r.deliveredAt) return 'delivered'; // fotos entregadas
   if (r.status === 'completed' && !r.deliveredAt && r.selection && !r.selection.doneAt) return 'selection'; // eligiendo fotos
   return r.status === 'confirmed' || r.status === 'completed' ? 'confirmed' : 'review';
 };
@@ -176,6 +193,7 @@ export function waVars(r, brand, plan) {
     hora_anterior: r.rescheduledFrom?.time ? formatTime(r.rescheduledFrom.time) : '',
     enlace_seleccion: r.selection?.url ?? '',
     plazo_seleccion: plazoSeleccion(r, brand),
+    enlace_galeria: r.galleryUrl ?? '',
   };
 }
 
@@ -196,8 +214,8 @@ export function renderWa(template, vars) {
 }
 
 /** Mensaje final para una solicitud. */
-export function waMessage(r, brand, plan, kind = waKindFor(r)) {
-  return renderWa(waTemplate(brand, kind), waVars(r, brand, plan));
+export function waMessage(r, brand, plan, kind = waKindFor(r), overrides = {}) {
+  return renderWa(waTemplate(brand, kind), { ...waVars(r, brand, plan), ...overrides });
 }
 
 /**

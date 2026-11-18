@@ -275,7 +275,13 @@ export function Tracking() {
         return <WhatsAppModal request={r} brand={brandsById[r.brandId]} plan={db.plans.find((p) => p.id === r.planId)} initialKind="selection" canEditTemplates={can('web.manage')} onClose={() => setSelecting(null)} />;
       })()}
       {selecting?.kind === 'done' && <SelectionDoneDialog request={db.requests.find((x) => x.id === selecting.id)} onClose={() => setSelecting(null)} />}
-      {delivering && <DeliverDialog request={db.requests.find((x) => x.id === delivering.id)} onClose={() => setDelivering(null)} />}
+      {delivering && !delivering.whatsapp && (
+        <DeliverDialog request={db.requests.find((x) => x.id === delivering.id)} onClose={() => setDelivering(null)} onSaved={() => setDelivering({ id: delivering.id, whatsapp: true })} />
+      )}
+      {delivering?.whatsapp && (() => {
+        const r = db.requests.find((x) => x.id === delivering.id);
+        return <WhatsAppModal request={r} brand={brandsById[r.brandId]} plan={db.plans.find((p) => p.id === r.planId)} initialKind="delivered" canEditTemplates={can('web.manage')} onClose={() => setDelivering(null)} />;
+      })()}
     </>
   );
 }

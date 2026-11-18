@@ -191,6 +191,9 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
               </span>
             )}
             {r.deliveryNote && <span className="small muted">{r.deliveryNote}</span>}
+            <Button size="sm" variant="secondary" onClick={() => setSelDialog('whatsapp-delivered')} data-testid="delivered-whatsapp">
+              Mensaje de entrega
+            </Button>
           </>
         )}
         {can('requests.manage') && (stage === 'selecting' || stage === 'shot' || stage === 'delivered') && (
@@ -200,18 +203,18 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
         )}
       </div>
 
-      {delivering && <DeliverDialog request={r} onClose={() => setDelivering(false)} />}
+      {delivering && <DeliverDialog request={r} onClose={() => setDelivering(false)} onSaved={() => { setDelivering(false); setSelDialog('whatsapp-delivered'); }} />}
       {selDialog === 'sent' && <SelectionSentDialog request={r} onClose={() => setSelDialog(null)} onSaved={() => setSelDialog('whatsapp')} />}
       {selDialog === 'done' && <SelectionDoneDialog request={r} onClose={() => setSelDialog(null)} />}
       {(selDialog === 'print-ordered' || selDialog === 'print-ready') && (
         <PrintDialog request={r} kind={selDialog === 'print-ready' ? 'ready' : 'ordered'} items={physical} onClose={() => setSelDialog(null)} />
       )}
-      {selDialog === 'whatsapp' && (
+      {(selDialog === 'whatsapp' || selDialog === 'whatsapp-delivered') && (
         <WhatsAppModal
           request={r}
           brand={brand}
           plan={db.plans.find((p) => p.id === r.planId)}
-          initialKind="selection"
+          initialKind={selDialog === 'whatsapp-delivered' ? 'delivered' : 'selection'}
           canEditTemplates={can('web.manage')}
           onClose={() => setSelDialog(null)}
         />
@@ -221,7 +224,7 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
 }
 
 /** Diálogo para registrar la entrega (fecha, enlace de la galería y nota). */
-export function DeliverDialog({ request: r, onClose }) {
+export function DeliverDialog({ request: r, onClose, onSaved }) {
   const toast = useToast();
   const todayIso = toISODate(today());
   const [date, setDate] = useState(todayIso);
@@ -236,7 +239,7 @@ export function DeliverDialog({ request: r, onClose }) {
     try {
       await api.markDelivered(r.id, { date, galleryUrl: url, note });
       toast(`Fotos de ${r.client.firstName} marcadas como entregadas`, 'green');
-      onClose();
+      (onSaved ?? onClose)();
     } catch (e) {
       setError(e.message);
       setBusy(false);
@@ -266,6 +269,7 @@ export function DeliverDialog({ request: r, onClose }) {
         <Field label="Nota">
           <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: se enviaron 12 fotos por WhatsApp" />
         </Field>
+        {onSaved && <p className="muted small">Al guardar se abre el mensaje de WhatsApp «Fotos entregadas» con el enlace, para enviárselo al cliente.</p>}
       </div>
     </Modal>
   );

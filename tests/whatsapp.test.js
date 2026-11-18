@@ -101,3 +101,17 @@ test('todos los mensajes llevan la descripción del plan (fotos y escenarios)', 
   // Descripción en varias líneas → una sola
   assert.equal(waVars(req(), brand, { ...plan, description: ' 4 fotos\n 2 escenarios ' }).descripcion, '4 fotos · 2 escenarios');
 });
+
+test('mensaje de entrega: enlace de la galería pegado y tipo por defecto', () => {
+  const r = req({ status: 'completed', deliveredAt: '2026-11-18', galleryUrl: 'https://ana.pixieset.com/sesion/' });
+  assert.equal(waKindFor(r), 'delivered');
+  const m = waMessage(r, brand, plan);
+  assert.match(m, /^¡Hola Ana! 👋/);
+  assert.match(m, /ya están listas/);
+  assert.match(m, /👉 https:\/\/ana\.pixieset\.com\/sesion\//);
+  assert.match(m, /vigencia durante 10 días/);
+  // El enlace pegado en el mensaje reemplaza al guardado
+  assert.match(waMessage(r, brand, plan, 'delivered', { enlace_galeria: 'https://otro.example/x' }), /👉 https:\/\/otro\.example\/x/);
+  // Sin enlace, la línea no sale
+  assert.doesNotMatch(waMessage({ ...r, galleryUrl: '' }, brand, plan, 'delivered'), /👉/);
+});

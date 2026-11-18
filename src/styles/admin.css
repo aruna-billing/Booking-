@@ -1622,6 +1622,18 @@
   color: var(--red);
   background: var(--red-bg);
 }
+.wa-link__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.wa-link__row input {
+  flex: 1;
+  min-width: 0;
+}
+.wa-link__warn {
+  color: #a3531b;
+}
 .wa-edit {
   width: 100%;
   min-height: 260px;

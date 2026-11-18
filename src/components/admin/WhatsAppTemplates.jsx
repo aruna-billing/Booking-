@@ -12,6 +12,7 @@ function sample(brand, plan) {
     status: 'confirmed',
     quote: { ...r.quote, durationMin: plan?.durationMin ?? 60, lines: [], discount: 0 },
     payments: [{ status: 'verified', amount: r.quote.deposit }],
+    galleryUrl: 'https://tusfotos.pixieset.com/maria-perez/',
   };
 }
 
