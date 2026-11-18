@@ -11,7 +11,8 @@ export const PERMISSIONS = [
   { key: 'tracking.update', label: 'Marcar fotos realizadas y entregas' },
   { key: 'requests.manage', label: 'Completar, reabrir o cancelar reservas y escribir notas internas' },
   { key: 'requests.delete', label: 'Borrar solicitudes para siempre' },
-  { key: 'payments.manage', label: 'Verificar, registrar y anular pagos' },
+  { key: 'payments.manage', label: 'Verificar, registrar y anular pagos; añadir cargos y aprobar los propuestos' },
+  { key: 'charges.propose', label: 'Proponer cargos (un administrador debe aprobarlos)' },
   { key: 'finance.view', label: 'Ver finanzas y cobros' },
   { key: 'calendar.view', label: 'Ver el calendario de reservas' },
   { key: 'calendar.manage', label: 'Gestionar calendario, bloqueos y horarios' },
@@ -32,7 +33,7 @@ export const ROLES = {
   },
   assistant: {
     label: 'Asistente',
-    description: 'Ve las solicitudes, los comprobantes, los seguimientos y el calendario (solo lectura) de sus marcas; acepta o rechaza sesiones y marca fotos realizadas y entregas.',
-    permissions: ['requests.view', 'receipts.view', 'sessions.decide', 'tracking.view', 'tracking.update', 'calendar.view'],
+    description: 'Ve las solicitudes, los comprobantes, los seguimientos y el calendario (solo lectura) de sus marcas; acepta o rechaza sesiones, marca fotos realizadas y entregas, y propone cargos que un administrador aprueba.',
+    permissions: ['requests.view', 'receipts.view', 'sessions.decide', 'tracking.view', 'tracking.update', 'calendar.view', 'charges.propose'],
   },
 };

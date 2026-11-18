@@ -52,7 +52,7 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
 1. Supabase → **Authentication → Users → Add user**, con el correo y una contraseña para esa persona (marca *Auto Confirm User*).
 2. En el panel → **Usuarios y roles** → **Añadir usuario**, con el **mismo correo**, y elige el rol.
    - **Administrador**: todo el panel.
-   - **Asistente**: ve solicitudes, comprobantes y seguimientos; acepta o rechaza sesiones; marca fotos realizadas y entregas. Puede limitarse a algunas marcas.
+   - **Asistente**: ve solicitudes, comprobantes y seguimientos; acepta o rechaza sesiones; marca fotos realizadas y entregas; propone cargos que un administrador aprueba. Puede limitarse a algunas marcas.
 3. **Cambiar una contraseña.** El sitio no tiene «¿Olvidaste tu contraseña?». Hay que borrar al usuario en Supabase → Authentication → Users y crearlo de nuevo con otra contraseña. Después se vuelve a añadir en **Usuarios y roles**. Supabase no deja borrar al único administrador activo.
 
 ## Al actualizar a una versión nueva
@@ -62,6 +62,10 @@ Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_i
 ## Cambiar la fecha de una reserva
 
 En una solicitud → **Cambiar fecha**: eliges el día y la hora nuevos en un calendario que muestra lo libre y lo ocupado (sin contar esta misma reserva). Puedes elegir un día cerrado, bloqueado u ocupado; el panel te avisa antes de guardar. El cambio queda en el historial, el calendario y la agenda pública se actualizan, y si usas Google Calendar el evento se mueve solo. Al terminar se abre el mensaje de WhatsApp «Cambio de fecha» para copiarlo, y si marcas «Avisar al cliente por correo» sale el correo «Cambio de fecha» (ver `CORREOS.md`). No hace falta volver a ejecutar el SQL.
+
+## Cargos propuestos por un asistente
+
+El asistente pulsa **Proponer cargo** en una solicitud. El cargo queda «Por aprobar» y no cambia el total hasta que un administrador lo aprueba o lo rechaza desde el detalle. Las solicitudes con cargos por aprobar suman en el número del menú «Solicitudes» y salen en el dashboard. Para que la base de datos también impida que un asistente cambie precios, vuelve a ejecutar `supabase/01_instalacion.sql` (añade la protección `guard_booking_quote`; no borra datos).
 
 ## Recordatorio «Día de la sesión» (opcional)
 
@@ -118,6 +122,6 @@ En la lista de planes se ve cuántos cupos van ocupados. El nombre, precio, desc
 - **Google Calendar:** es opcional y se conecta con [`GOOGLE-CALENDAR.md`](GOOGLE-CALENDAR.md). Sin él, la agenda que ve el cliente sale solo de las reservas activas y los días bloqueados en el panel.
 - **Archivos sin uso:** si un cliente sube un comprobante y no termina la reserva, el archivo queda en `receipts/incoming/` sin solicitud. Puedes borrarlos de vez en cuando desde Storage.
 - **Configuración compartida:** si dos administradores editan la configuración a la vez, se guarda el último cambio.
-- **Permisos de asistente:** la base de datos impide que un asistente cambie la configuración. Dentro de una solicitud de sus marcas, en cambio, la pantalla limita lo que puede hacer, pero la base de datos le deja editarla completa.
+- **Permisos de asistente:** la base de datos impide que un asistente cambie la configuración. Tampoco le deja cambiar el precio ni los cargos de una reserva (solo proponerlos). Dentro de una solicitud de sus marcas, el resto de lo que puede hacer lo limita la pantalla: la base de datos le deja editar los demás datos.
 - **Sin límite de solicitudes:** no hay límite de solicitudes por persona; si recibes spam, se puede añadir un captcha.
 - **Pruebas:** este proyecto se probó con una base Postgres local que imita Supabase, no con tu proyecto real. Después de publicar, haz una reserva de prueba completa y cancélala desde el panel.

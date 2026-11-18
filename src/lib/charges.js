@@ -43,3 +43,25 @@ export function validateCharge({ mode, extra, qty, name, amount }) {
   }
   return e;
 }
+
+// ───────── Cargos propuestos por un asistente ─────────
+// El asistente no toca la cotización: su cargo queda en r.pendingCharges hasta que un
+// administrador lo aprueba (pasa a quote.lines) o lo rechaza (se quita y queda en el historial).
+
+/** Cargos que esperan aprobación. */
+export const pendingChargesOf = (r) => (r?.pendingCharges ?? []).filter((c) => c && c.id);
+
+/** Línea propuesta: igual que un cargo, más quién la propuso, cuándo y una nota opcional. */
+export function proposedChargeLine({ extra, qty, name, amount, note = '', by = 'Equipo', at = new Date().toISOString() }) {
+  const line = chargeLine({ extra, qty, name, amount, by, at });
+  return { ...line, id: line.id.replace('charge-', 'prop-'), status: 'pending', proposedBy: by, proposedAt: at, note: String(note ?? '').trim().slice(0, 300) };
+}
+
+/** Convierte un cargo propuesto en línea de la cotización al aprobarlo. */
+export function approvedLine(p, { by = 'Equipo', at = new Date().toISOString() } = {}) {
+  const { status: _s, proposedBy, proposedAt, note, ...rest } = p;
+  return { ...rest, id: rest.id.replace('prop-', 'charge-'), source: 'admin', addedBy: proposedBy ?? rest.addedBy, addedAt: proposedAt ?? rest.addedAt, approvedBy: by, approvedAt: at, ...(note ? { note } : {}) };
+}
+
+/** Texto corto para historial y avisos: «Foto adicional × 3». */
+export const chargeLabel = (l) => `${l.name}${l.quantity > 1 ? ` × ${l.quantity}` : ''}`;

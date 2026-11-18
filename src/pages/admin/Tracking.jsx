@@ -8,6 +8,7 @@ import { WhatsAppModal } from '../../components/admin/WhatsAppModal.jsx';
 import { Badge, EmptyState, useToast } from '../../components/ui/misc.jsx';
 import { Link } from '../../lib/router.jsx';
 import { formatShortDate, formatTime, toISODate, today } from '../../lib/date.js';
+import { physicalItemsOf, physicalSummary, printStateOf } from '../../lib/physical.js';
 import { STAGES, alertOf, selectionDueDate, daysFrom, deliveryDueDate, stageOf, trackingSummary } from '../../lib/tracking.js';
 import { shortId } from '../../lib/format.js';
 import * as api from '../../services/api.js';
@@ -92,6 +93,8 @@ export function Tracking() {
     const { r, alert } = x;
     const b = brandsById[r.brandId];
     const future = r.date > ref;
+    const physical = physicalItemsOf(r, db.plans, db.extras);
+    const printPending = x.stage === 'shot' && physical.length > 0 && printStateOf(r) !== 'ready';
     return (
       <li key={r.id} className={`tcard tcard--${alert?.tone ?? 'neutral'}`} data-testid={`tcard-${r.id}`}>
         <div className="tcard__head">
@@ -116,6 +119,11 @@ export function Tracking() {
           <p className="tcard__due small">
             Vence {formatShortDate(x.due)}
             {r.selection?.count != null && ` · ${r.selection.count} foto${r.selection.count === 1 ? '' : 's'}`}
+          </p>
+        )}
+        {x.stage === 'shot' && physical.length > 0 && (
+          <p className="tcard__print small" data-testid="tcard-print" title={physicalSummary(physical)}>
+            🖨️ {printStateOf(r) === 'ready' ? 'Material listo' : printStateOf(r) === 'ordered' ? 'En impresión' : 'Material por imprimir'} · {physicalSummary(physical)}
           </p>
         )}
         {x.stage === 'delivered' && (
@@ -146,7 +154,12 @@ export function Tracking() {
             </Button>
           </div>
         )}
-        {can('tracking.update') && x.stage === 'shot' && (
+        {can('tracking.update') && printPending && (
+          <Link to={`/admin/solicitudes/${r.id}`} className="btn btn--sm btn--secondary" data-testid="tcard-print-open">
+            Gestionar impresión
+          </Link>
+        )}
+        {can('tracking.update') && x.stage === 'shot' && !printPending && (
           <Button size="sm" onClick={() => setDelivering(r)} aria-label={`Marcar entrega de ${r.client.firstName} ${r.client.lastName}`}>
             Marcar entregado
           </Button>

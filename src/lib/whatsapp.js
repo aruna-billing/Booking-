@@ -22,6 +22,7 @@ export const WA_VARS = [
   ['apellido', 'Apellido'],
   ['marca', 'Nombre de la marca'],
   ['plan', 'Plan elegido'],
+  ['descripcion', 'Descripción del plan: fotos, escenarios… (ej.: 4 Fotografías | 1 Escenario)'],
   ['incluye', 'Lo que incluye el plan (una línea por cosa)'],
   ['extras', 'Extras y cargos añadidos (una línea por cada uno)'],
   ['fecha', 'Fecha (ej.: sábado, 14 de noviembre de 2026)'],
@@ -51,7 +52,9 @@ export function defaultWa(kind, brand) {
 👉 {enlace_seleccion}
 ⏳ Tienes hasta el {plazo_seleccion} para elegir.
 
-Tu plan incluye:
+📸 Tu plan: {plan}
+🖼️ {descripcion}
+Incluye:
 {incluye}
 
 Cuando termines de elegir, avísanos por aquí y empezamos la edición. ¡Gracias!`;
@@ -65,6 +68,7 @@ Cuando termines de elegir, avísanos por aquí y empezamos la edición. ¡Gracia
 📅 Fecha: {fecha}
 🕒 Hora: {hora}${ev ? '' : ' a {hora_fin}'}
 📸 Plan: {plan}
+🖼️ {descripcion}
 
 ⏳ Pendiente: {pendiente} {pendiente_nota}
 
@@ -80,6 +84,7 @@ Listo, movimos tu reserva 📆
 ✅ Ahora: ${ev ? '{fecha}' : '{fecha} · {hora} a {hora_fin}'}
 
 📸 Plan: {plan}
+🖼️ {descripcion}
 ⏳ Pendiente: {pendiente} {pendiente_nota}
 
 Cualquier cosa, nos escribes por aquí. ¡Gracias!`;
@@ -90,6 +95,7 @@ Cualquier cosa, nos escribes por aquí. ¡Gracias!`;
 Recibimos tu solicitud #{solicitud} y la estamos revisando:
 
 📸 Plan: {plan}
+🖼️ {descripcion}
 📅 Fecha: {fecha}
 🕒 Hora: {hora}
 💰 Total: {total}
@@ -102,6 +108,7 @@ Te confirmamos en cuanto verifiquemos tu pago. ¡Gracias!`;
 Tu pago fue comprobado y tu reserva está *confirmada* ✅
 
 📸 Plan: {plan}
+🖼️ {descripcion}
 Incluye:
 {incluye}
 {extras}
@@ -150,6 +157,7 @@ export function waVars(r, brand, plan) {
     apellido: r.client?.lastName ?? '',
     marca: brand.name,
     plan: r.planName ?? plan?.name ?? '',
+    descripcion: String(plan?.description ?? '').trim().replace(/\s*\n\s*/g, ' · '),
     incluye: bullets(plan?.deliverables ?? []),
     extras: extras.length ? `Extras:\n${bullets(extras)}` : '',
     fecha: r.date ? formatLongDate(r.date) : '',

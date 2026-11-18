@@ -17,7 +17,8 @@ import { agendaRequests } from '../lib/busy.js';
 import { cleanRules, validateRules } from '../lib/rules.js';
 import { planBookingError, planLimit, planUses } from '../lib/planLimits.js';
 import { cleanPlanIds, couponStatus, findCoupon, normalizeCode, validateCoupon } from '../lib/coupons.js';
-import { chargeLine, recomputeQuote, validateCharge } from '../lib/charges.js';
+import { approvedLine, chargeLabel, chargeLine, pendingChargesOf, proposedChargeLine, recomputeQuote, validateCharge } from '../lib/charges.js';
+import { needsPrint } from '../lib/physical.js';
 import * as cloud from './cloud.js';
 
 // En la demo se simula la espera de un servidor; en modo real la espera es la de verdad.
@@ -396,6 +397,72 @@ export async function removeCharge(id, lineId) {
   if (paid > quote.total) throw new Error('No se puede quitar: lo ya pagado superaría el total. Anula antes el pago de este cargo.');
   await delay(150);
   await updateRequest(id, { quote }, `Cargo quitado: ${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''} (${moneyOf(r, line.total)})`);
+}
+
+// ───────────────────────── Cargos propuestos (asistente → administrador) ─────────────────────────
+
+/**
+ * El asistente propone un cargo. No cambia el total: queda en pendingCharges hasta que un
+ * administrador lo apruebe. (En modo real la base de datos tampoco deja que un asistente
+ * cambie la cotización: ver supabase/01_instalacion.sql, «guard_booking_quote».)
+ */
+export async function proposeCharge(id, { mode, extraId, qty, name, amount, note = '' }) {
+  guard('charges.propose', id);
+  const s = getState();
+  const r = s.requests.find((x) => x.id === id);
+  if (!r) throw new Error('Solicitud no encontrada.');
+  if (r.status === 'cancelled') throw new Error('La reserva está cancelada.');
+  const extra = mode === 'extra' ? s.extras.find((x) => x.id === extraId && x.brandId === r.brandId) : null;
+  const errors = validateCharge({ mode, extra, qty, name, amount });
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
+  await delay(200);
+  const p = proposedChargeLine({ extra, qty, name, amount, note, by: actor() });
+  await updateRequest(id, { pendingCharges: [...pendingChargesOf(r), p] }, `Cargo propuesto: ${chargeLabel(p)} (${moneyOf(r, p.total)}) · pendiente de aprobación${p.note ? ` · «${p.note}»` : ''}`);
+  return p;
+}
+
+/** Un administrador aprueba un cargo propuesto: se suma al total, al saldo y a la duración. */
+export async function approveCharge(id, chargeId) {
+  guard('payments.manage', id);
+  const r = getState().requests.find((x) => x.id === id);
+  const p = pendingChargesOf(r).find((c) => c.id === chargeId);
+  if (!p) throw new Error('Ese cargo ya no está pendiente.');
+  if (r.status === 'cancelled') throw new Error('La reserva está cancelada: rechaza el cargo en lugar de aprobarlo.');
+  await delay(150);
+  const line = approvedLine(p, { by: actor() });
+  const quote = recomputeQuote({ ...r.quote, lines: [...(r.quote.lines ?? []), line] });
+  await updateRequest(
+    id,
+    { quote, pendingCharges: pendingChargesOf(r).filter((c) => c.id !== chargeId) },
+    `Cargo aprobado: ${chargeLabel(line)} (${moneyOf(r, line.total)}), propuesto por ${p.proposedBy}`
+  );
+  return line;
+}
+
+/** Un administrador rechaza un cargo propuesto (con motivo opcional). El total no cambia. */
+export async function rejectCharge(id, chargeId, reason = '') {
+  guard('payments.manage', id);
+  const r = getState().requests.find((x) => x.id === id);
+  const p = pendingChargesOf(r).find((c) => c.id === chargeId);
+  if (!p) throw new Error('Ese cargo ya no está pendiente.');
+  await delay(150);
+  const why = String(reason ?? '').trim();
+  await updateRequest(
+    id,
+    { pendingCharges: pendingChargesOf(r).filter((c) => c.id !== chargeId) },
+    `Cargo rechazado: ${chargeLabel(p)} (${moneyOf(r, p.total)}), propuesto por ${p.proposedBy}${why ? ` · Motivo: ${why}` : ''}`
+  );
+}
+
+/** Quien propuso un cargo puede retirarlo mientras siga pendiente. */
+export async function withdrawCharge(id, chargeId) {
+  const u = guard('charges.propose', id);
+  const r = getState().requests.find((x) => x.id === id);
+  const p = pendingChargesOf(r).find((c) => c.id === chargeId);
+  if (!p) throw new Error('Ese cargo ya no está pendiente.');
+  if (p.proposedBy !== u.name && !(u.role === 'admin')) throw new Error('Solo quien propuso el cargo puede retirarlo.');
+  await delay(150);
+  await updateRequest(id, { pendingCharges: pendingChargesOf(r).filter((c) => c.id !== chargeId) }, `Cargo propuesto retirado: ${chargeLabel(p)} (${moneyOf(r, p.total)})`);
 }
 
 const moneyOf = (r, n) => `${r.currency === 'USD' ? 'US$' : 'RD$'} ${Number(n).toLocaleString('en-US')}`;
@@ -848,6 +915,40 @@ export async function markSelectionDone(id, { date, count = '', note = '' } = {}
   );
 }
 
+const inEditing = (r) => r && r.status === 'completed' && !r.deliveredAt && !inSelection(r);
+const printNeeded = (r) => needsPrint(r, getState().plans, getState().extras);
+
+/** Material físico: se envió a imprimir (fecha y nota, p. ej. el laboratorio). */
+export async function markPrintOrdered(id, { date, note = '' } = {}) {
+  guard('tracking.update', id);
+  await delay(200);
+  const r = getState().requests.find((x) => x.id === id);
+  if (!inEditing(r)) throw new Error('El material se envía a imprimir cuando el cliente ya eligió sus fotos.');
+  if (!printNeeded(r)) throw new Error('Esta reserva no lleva material físico.');
+  if (r.print?.readyAt) throw new Error('El material ya está listo.');
+  const d = date || todayIso();
+  if (d > todayIso()) throw new Error('La fecha no puede ser futura.');
+  if (r.selection?.doneAt && d < r.selection.doneAt) throw new Error('No puede ser antes de la selección del cliente.');
+  if (r.shotAt && d < r.shotAt) throw new Error('No puede ser antes del día de las fotos.');
+  const again = Boolean(r.print?.orderedAt);
+  const n = String(note).trim().slice(0, 300);
+  await updateRequest(id, { print: { ...(r.print ?? {}), orderedAt: d, note: n } }, `${again ? 'Impresión actualizada' : 'Material enviado a imprimir'}${n ? ` · ${n}` : ''}`);
+}
+
+/** Material físico listo para entregar. */
+export async function markPrintReady(id, { date } = {}) {
+  guard('tracking.update', id);
+  await delay(200);
+  const r = getState().requests.find((x) => x.id === id);
+  if (!inEditing(r)) throw new Error('El material se marca listo cuando el cliente ya eligió sus fotos.');
+  if (!printNeeded(r)) throw new Error('Esta reserva no lleva material físico.');
+  const d = date || todayIso();
+  if (d > todayIso()) throw new Error('La fecha no puede ser futura.');
+  if (r.print?.orderedAt && d < r.print.orderedAt) throw new Error('No puede estar listo antes de enviarse a imprimir.');
+  if (r.selection?.doneAt && d < r.selection.doneAt) throw new Error('No puede ser antes de la selección del cliente.');
+  await updateRequest(id, { print: { ...(r.print ?? {}), orderedAt: r.print?.orderedAt ?? d, readyAt: d } }, 'Material físico listo para entregar');
+}
+
 /** Marca la entrega de las fotos al cliente. */
 export async function markDelivered(id, { date, galleryUrl = '', note = '' } = {}) {
   guard('tracking.update', id);
@@ -855,6 +956,7 @@ export async function markDelivered(id, { date, galleryUrl = '', note = '' } = {
   const r = getState().requests.find((x) => x.id === id);
   if (!r || r.status !== 'completed' || r.deliveredAt) throw new Error('Primero marca la sesión como realizada.');
   if (inSelection(r)) throw new Error('Primero marca que el cliente ya eligió sus fotos.');
+  if (printNeeded(r) && !r.print?.readyAt) throw new Error('Primero marca el material físico como listo (etapa «Impresión»).');
   const d = date || todayIso();
   if (d > todayIso()) throw new Error('La fecha de entrega no puede ser futura.');
   if (r.shotAt && d < r.shotAt) throw new Error('La entrega no puede ser antes del día de las fotos.');
@@ -864,12 +966,14 @@ export async function markDelivered(id, { date, galleryUrl = '', note = '' } = {
   await updateRequest(id, { deliveredAt: d, galleryUrl: url, deliveryNote: note.trim() }, `Fotos entregadas al cliente${url ? ' (enlace de galería guardado)' : ''}`);
 }
 
-/** Deshace la última etapa (entregado → en edición → selección → reservado). Solo administradores. */
+/** Deshace la última etapa (entregado → material listo → en impresión → en edición → selección → reservado). Solo administradores. */
 export async function undoTrackingStep(id) {
   guard('requests.manage', id);
   await delay(200);
   const r = getState().requests.find((x) => x.id === id);
   if (r.deliveredAt) return updateRequest(id, { deliveredAt: null, galleryUrl: '', deliveryNote: '' }, 'Entrega deshecha: vuelve a «en edición»');
+  if (r.print?.readyAt) return updateRequest(id, { print: { ...r.print, readyAt: null } }, 'Material listo deshecho: vuelve a «en impresión»');
+  if (r.print?.orderedAt) return updateRequest(id, { print: null }, 'Envío a imprimir deshecho: vuelve a «por imprimir»');
   if (r.selection?.doneAt) return updateRequest(id, { selection: { ...r.selection, doneAt: null, count: null, note: '' } }, 'Selección deshecha: vuelve a «selección»');
   if (r.status === 'completed') return updateRequest(id, { status: 'confirmed', shotAt: null, selection: null }, 'Fotos realizadas deshecho: vuelve a «reservado»');
   throw new Error('No hay ninguna etapa para deshacer.');

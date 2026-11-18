@@ -7,6 +7,7 @@ import { formatDateTime, formatShortDate, formatTime, today, toISODate, addDays 
 import { formatMoney } from '../../lib/format.js';
 import { balanceDue } from '../../lib/finance.js';
 import { alertOf, trackingSummary } from '../../lib/tracking.js';
+import { pendingChargesOf } from '../../lib/charges.js';
 
 // Avisos de Seguimientos en el dashboard, de más a menos urgente.
 const ATTENTION = ['overdue', 'shoot_unmarked', 'select_waiting', 'shoot_today', 'due_soon', 'select_today'];
@@ -21,6 +22,7 @@ export function Dashboard() {
 
   const pending = reqs.filter((r) => r.status === 'pending_review');
   const toVerify = reqs.filter((r) => r.paymentStatus === 'submitted');
+  const withCharges = reqs.filter((r) => pendingChargesOf(r).length > 0);
   const upcoming = reqs
     .filter((r) => r.status === 'confirmed' && r.date >= t)
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -85,11 +87,11 @@ export function Dashboard() {
         </Card>
 
         <Card title="Necesitan atención" actions={<Link to="/admin/solicitudes" className="small">Todas</Link>}>
-          {pending.length === 0 && toVerify.length === 0 ? (
+          {pending.length === 0 && toVerify.length === 0 && withCharges.length === 0 ? (
             <EmptyState title="Todo al día." />
           ) : (
             <ul className="attention">
-              {[...new Set([...pending, ...toVerify])].slice(0, 6).map((r) => (
+              {[...new Set([...withCharges, ...pending, ...toVerify])].slice(0, 6).map((r) => (
                 <li key={r.id}>
                   <Link to={`/admin/solicitudes/${r.id}`} className="attention__item">
                     <span>
@@ -97,6 +99,9 @@ export function Dashboard() {
                       <span className="muted small"> · {r.planName} · {formatShortDate(r.date)}</span>
                     </span>
                     <span className="attention__badges">
+                      {pendingChargesOf(r).length > 0 && (
+                        <Badge tone="amber" data-testid="dash-pending-charges">{pendingChargesOf(r).length === 1 ? 'Cargo por aprobar' : `${pendingChargesOf(r).length} cargos por aprobar`}</Badge>
+                      )}
                       <RequestStatusBadge status={r.status} />
                       <PaymentStatusBadge status={r.paymentStatus} />
                     </span>

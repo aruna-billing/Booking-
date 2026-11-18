@@ -186,6 +186,25 @@ drop trigger if exists booking_requests_sync on public.booking_requests;
 create trigger booking_requests_sync before insert or update on public.booking_requests
   for each row execute function public.sync_booking_columns();
 
+-- Solo un administrador cambia la cotización (precio, cargos, descuento, anticipo, saldo).
+-- Un asistente propone cargos en payload.pendingCharges y un administrador los aprueba.
+-- Las funciones del servidor (reservas públicas, recordatorios, Google Calendar) no
+-- tienen usuario (auth.uid() es null) y no se ven afectadas.
+create or replace function public.guard_booking_quote()
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if auth.uid() is not null
+     and not public.is_admin()
+     and (new.payload->'quote') is distinct from (old.payload->'quote') then
+    raise exception 'Solo un administrador puede cambiar el precio o los cargos de una reserva. Propón el cargo para que lo apruebe.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists booking_requests_guard_quote on public.booking_requests;
+create trigger booking_requests_guard_quote before update on public.booking_requests
+  for each row execute function public.guard_booking_quote();
+
 alter table public.booking_requests enable row level security;
 
 drop policy if exists "equipo lee solicitudes de sus marcas" on public.booking_requests;

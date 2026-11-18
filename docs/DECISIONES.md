@@ -227,6 +227,7 @@ Está en Personalización, en la pestaña de cada marca, sección «4 · Secció
   - Puede **aceptar o rechazar sesiones**:
     - **Aceptar sesión** verifica el comprobante que envió el cliente y confirma la reserva. Solo es posible si hay comprobante.
     - **Rechazar sesión** pide un motivo (con opciones frecuentes: fecha no disponible, comprobante no válido…), cancela la solicitud y libera la fecha. El comprobante pendiente queda rechazado.
+  - Puede **proponer cargos** (extras o conceptos libres). Quedan «Por aprobar» y no cambian el total hasta que un administrador los aprueba. En modo real la base de datos rechaza cualquier cambio de la cotización hecho por un asistente.
   - **No ve** el dashboard, Finanzas, el panel «Cobros y pagos», Calendario, Planes, Cuentas, Personalización, Marcas, Términos ni Usuarios.
   - **No puede** registrar pagos, cancelar reservas confirmadas, escribir notas internas, preparar mensajes de WhatsApp ni restablecer los datos demo. Las notas internas las puede leer.
   - Su inicio es Solicitudes, y la barra lateral solo muestra sus dos secciones.

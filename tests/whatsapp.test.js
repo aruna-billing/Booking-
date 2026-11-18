@@ -87,3 +87,17 @@ test('«Día de la sesión»: plantilla propia y elegida sola el día de la sesi
   assert.equal(waKindFor({ ...req, date: '2099-01-01' }), 'confirmed');
   assert.match(waMessage(req, b, null, 'reminder'), /Llegó el día de tus fotos/);
 });
+
+test('todos los mensajes llevan la descripción del plan (fotos y escenarios)', () => {
+  const p = { ...plan, description: '4 Fotografías | 1 Escenario' };
+  const kinds = ['confirmed', 'review', 'moved', 'reminder', 'selection'];
+  for (const k of kinds) {
+    const r = req(k === 'selection' ? { status: 'completed', selection: { sentAt: '2026-11-14', url: 'https://g.example' } } : k === 'moved' ? { rescheduledFrom: { date: '2026-11-10', time: '09:00' } } : {});
+    const m = waMessage(r, brand, p, k);
+    assert.match(m, /📸 (Tu plan|Plan): Plan Pro\n🖼️ 4 Fotografías \| 1 Escenario/, k);
+  }
+  // Sin descripción, la línea desaparece
+  assert.doesNotMatch(waMessage(req(), brand, plan), /🖼️/);
+  // Descripción en varias líneas → una sola
+  assert.equal(waVars(req(), brand, { ...plan, description: ' 4 fotos\n 2 escenarios ' }).descripcion, '4 fotos · 2 escenarios');
+});

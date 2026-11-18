@@ -7,19 +7,21 @@ import { formatShortDate, formatTime, toISODate, today } from '../../lib/date.js
 import { alertOf, confirmedAtOf, deliveryDueDate, isExpress, selectionDays, selectionDueDate, stageOf } from '../../lib/tracking.js';
 import * as api from '../../services/api.js';
 import { useDb } from '../../store/mockDb.js';
+import { physicalItemsOf, physicalSummary, printStateOf } from '../../lib/physical.js';
 import { WhatsAppModal } from './WhatsAppModal.jsx';
 
 const fmtDate = (iso) => (iso ? formatShortDate(iso.slice(0, 10)) : '');
 
 /**
- * Línea de tiempo del cliente: Solicitud → Reservado → Día de las fotos → Selección → Entrega.
+ * Línea de tiempo del cliente: Solicitud → Reservado → Día de las fotos → Selección → [Impresión] → Entrega.
+ * «Impresión» solo aparece si el plan o los extras llevan material físico (lib/physical.js).
  * Muestra la fecha de cada paso y la siguiente acción.
  */
 export function ClientTimeline({ request: r, brand, extras, can }) {
   const toast = useToast();
   const db = useDb();
   const [delivering, setDelivering] = useState(false);
-  const [selDialog, setSelDialog] = useState(null); // 'sent' | 'done' | 'whatsapp'
+  const [selDialog, setSelDialog] = useState(null); // 'sent' | 'done' | 'whatsapp' | 'print-ordered' | 'print-ready'
   const [busy, setBusy] = useState(false);
   const stage = stageOf(r);
   const due = deliveryDueDate(r, brand, extras);
@@ -30,6 +32,10 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
   const selPlazo = `${selectionDays(brand)} día${selectionDays(brand) === 1 ? '' : 's'}`;
   const legacyNoSelection = idx >= 3 && !sel; // marcada antes de existir la etapa de selección
   const sessionFuture = r.date > toISODate(today());
+  const physical = physicalItemsOf(r, db.plans, db.extras);
+  const hasPrint = physical.length > 0;
+  const printState = printStateOf(r);
+  const printPending = hasPrint && stage === 'shot' && printState !== 'ready';
 
   const steps = [
     { key: 'request', label: 'Solicitud', date: fmtDate(r.createdAt), note: 'Recibida' },
@@ -52,15 +58,23 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
             ? sel?.sentAt ? `Elegir antes del ${formatShortDate(selectionDueDate(r, brand))}` : `Por enviar · ${selPlazo} para elegir`
             : `${selPlazo} para elegir`,
     },
+    hasPrint && {
+      key: 'print',
+      label: 'Impresión',
+      date: r.print?.readyAt ? `Listo ${fmtDate(r.print.readyAt)}` : r.print?.orderedAt ? `Enviado ${fmtDate(r.print.orderedAt)}` : stage === 'delivered' ? 'Entregado' : stage === 'shot' ? 'Por enviar' : 'Tras la selección',
+      note: physicalSummary(physical),
+      noteTitle: physicalSummary(physical),
+    },
     {
       key: 'delivered',
       label: 'Entrega',
-      date: r.deliveredAt ? fmtDate(r.deliveredAt) : idx >= 3 ? `Vence ${formatShortDate(due)}` : 'Tras la selección',
+      date: r.deliveredAt ? fmtDate(r.deliveredAt) : idx >= 3 ? `Vence ${formatShortDate(due)}` : hasPrint ? 'Tras la impresión' : 'Tras la selección',
       note: r.deliveredAt ? 'Entregadas' : days,
     },
-  ];
+  ].filter(Boolean);
   // Pasos completados según la etapa; el siguiente es el «paso actual».
-  const doneCount = { request: 1, booked: 2, selecting: 3, shot: 4, delivered: 5 }[stage] ?? 0;
+  const doneCount =
+    stage === 'delivered' ? steps.length : ({ request: 1, booked: 2, selecting: 3, shot: 4 }[stage] ?? 0) + (stage === 'shot' && hasPrint && printState === 'ready' ? 1 : 0);
   const stateOf = (i) => (stage === null ? 'off' : i < doneCount ? 'done' : i === doneCount ? 'current' : 'todo');
 
   const doShot = async () => {
@@ -93,7 +107,7 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
               <span className="ctl__text">
                 <span className="ctl__label">{s.label}</span>
                 <span className="ctl__date">{s.date || '—'}</span>
-                <span className="ctl__note">{s.note}</span>
+                <span className="ctl__note" title={s.noteTitle}>{s.note}</span>
               </span>
               <span className="visually-hidden">{st === 'done' ? ' (completado)' : st === 'current' ? ' (paso actual)' : ''}</span>
             </li>
@@ -144,7 +158,24 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
                 {sel.note ? ` · ${sel.note}` : ''}
               </span>
             )}
-            {can('tracking.update') && (
+            {printPending && (
+              <span className="ctl__print small" data-testid="print-status">
+                <Badge tone={printState === 'ordered' ? 'neutral' : 'amber'}>{printState === 'ordered' ? 'En impresión' : 'Material por imprimir'}</Badge>{' '}
+                {physicalSummary(physical)}
+                {r.print?.note ? ` · ${r.print.note}` : ''}
+              </span>
+            )}
+            {can('tracking.update') && printPending && (
+              <>
+                <Button size="sm" variant={printState === 'ordered' ? 'secondary' : 'primary'} onClick={() => setSelDialog('print-ordered')} data-testid="print-ordered">
+                  {printState === 'ordered' ? 'Editar impresión' : 'Enviado a imprimir'}
+                </Button>
+                <Button size="sm" variant={printState === 'ordered' ? 'primary' : 'secondary'} onClick={() => setSelDialog('print-ready')} data-testid="print-ready">
+                  Material listo
+                </Button>
+              </>
+            )}
+            {can('tracking.update') && !printPending && (
               <Button size="sm" onClick={() => setDelivering(true)} data-testid="mark-delivered">
                 Marcar como entregado
               </Button>
@@ -172,6 +203,9 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
       {delivering && <DeliverDialog request={r} onClose={() => setDelivering(false)} />}
       {selDialog === 'sent' && <SelectionSentDialog request={r} onClose={() => setSelDialog(null)} onSaved={() => setSelDialog('whatsapp')} />}
       {selDialog === 'done' && <SelectionDoneDialog request={r} onClose={() => setSelDialog(null)} />}
+      {(selDialog === 'print-ordered' || selDialog === 'print-ready') && (
+        <PrintDialog request={r} kind={selDialog === 'print-ready' ? 'ready' : 'ordered'} items={physical} onClose={() => setSelDialog(null)} />
+      )}
       {selDialog === 'whatsapp' && (
         <WhatsAppModal
           request={r}
@@ -325,6 +359,70 @@ export function SelectionDoneDialog({ request: r, onClose }) {
         <Field label="Nota (opcional)">
           <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: pidió 3 fotos extra en blanco y negro" data-testid="selection-note" />
         </Field>
+      </div>
+    </Modal>
+  );
+}
+
+/** Material físico: enviado a imprimir (fecha + nota) o listo para entregar (fecha). */
+export function PrintDialog({ request: r, kind, items = [], onClose }) {
+  const toast = useToast();
+  const todayIso = toISODate(today());
+  const ready = kind === 'ready';
+  const [date, setDate] = useState(ready ? todayIso : r.print?.orderedAt ?? todayIso);
+  const [note, setNote] = useState(r.print?.note ?? '');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const min = ready ? r.print?.orderedAt ?? r.selection?.doneAt ?? r.shotAt : r.selection?.doneAt ?? r.shotAt;
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (ready) {
+        await api.markPrintReady(r.id, { date });
+        toast('Material listo: ya puedes marcar la entrega', 'green');
+      } else {
+        await api.markPrintOrdered(r.id, { date, note });
+        toast('Material enviado a imprimir', 'green');
+      }
+      onClose();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`${ready ? 'Material listo' : 'Enviar a imprimir'} · ${r.client.firstName} ${r.client.lastName}`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button onClick={save} loading={busy} data-testid="print-save">{ready ? 'Marcar listo' : 'Guardar'}</Button>
+        </>
+      }
+    >
+      <div className="form">
+        {error && <p className="callout callout--red" role="alert">{error}</p>}
+        <div>
+          <p className="field__label">Material de esta reserva</p>
+          <ul className="print-items small" data-testid="print-items">
+            {items.map((i) => (
+              <li key={`${i.source}-${i.name}`}>
+                {i.name}{i.qty > 1 ? ` ×${i.qty}` : ''} <span className="muted">· {i.source === 'plan' ? 'del plan' : 'extra'}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <Field label={ready ? 'Fecha en que estuvo listo' : 'Fecha de envío a imprimir'} required>
+          <input type="date" value={date} min={min ?? undefined} max={todayIso} onChange={(e) => setDate(e.target.value)} data-testid="print-date" />
+        </Field>
+        {!ready && (
+          <Field label="Nota" hint="Laboratorio, número de pedido, acabado…">
+            <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: Laboratorio Foto Arte, pedido #2281" data-testid="print-note" />
+          </Field>
+        )}
       </div>
     </Modal>
   );

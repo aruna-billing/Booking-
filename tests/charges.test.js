@@ -45,3 +45,42 @@ test('validación', () => {
   assert.ok(validateCharge({ mode: 'custom', name: 'X', amount: 0 }).amount);
   assert.deepEqual(validateCharge({ mode: 'custom', name: 'X', amount: 100 }), {});
 });
+
+// ───────── Cargos propuestos por un asistente ─────────
+import { approvedLine, chargeLabel, pendingChargesOf, proposedChargeLine } from '../src/lib/charges.js';
+
+test('un cargo propuesto no cambia la cotización y guarda quién lo propuso', () => {
+  const p = proposedChargeLine({ extra: foto, qty: 3, note: '  Pidió 3 más  ', by: 'Laura', at: '2026-11-16T15:00:00.000Z' });
+  assert.equal(p.status, 'pending');
+  assert.equal(p.total, 2100);
+  assert.equal(p.proposedBy, 'Laura');
+  assert.equal(p.note, 'Pidió 3 más');
+  assert.match(p.id, /^prop-/);
+  assert.equal(chargeLabel(p), 'Foto digital adicional × 3');
+  const r = { quote: computeQuote({ plan, depositPercent: 50 }), pendingCharges: [p, null] };
+  assert.deepEqual(pendingChargesOf(r).map((c) => c.id), [p.id]);
+  assert.equal(r.quote.total, 5500);
+  assert.deepEqual(pendingChargesOf({}), []);
+});
+
+test('al aprobarlo pasa a la cotización como cargo del equipo y suma total y minutos', () => {
+  const q = computeQuote({ plan, depositPercent: 50 });
+  const p = proposedChargeLine({ extra: media, qty: 1, by: 'Laura', at: '2026-11-16T15:00:00.000Z' });
+  const line = approvedLine(p, { by: 'Elian', at: '2026-11-16T16:00:00.000Z' });
+  assert.equal(line.source, 'admin');
+  assert.equal(line.addedBy, 'Laura');
+  assert.equal(line.approvedBy, 'Elian');
+  assert.equal(line.status, undefined);
+  assert.match(line.id, /^charge-/);
+  const n = recomputeQuote({ ...q, lines: [...q.lines, line] });
+  assert.equal(n.total, 8000);
+  assert.equal(n.durationMin, 60);
+  assert.equal(n.deposit, q.deposit);
+});
+
+test('concepto libre propuesto: misma validación que un cargo', () => {
+  assert.ok(validateCharge({ mode: 'custom', name: '', amount: 0 }).name);
+  const p = proposedChargeLine({ name: 'Retoque especial', amount: 1500, by: 'Laura' });
+  assert.equal(p.total, 1500);
+  assert.equal(p.note, '');
+});

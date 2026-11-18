@@ -7,8 +7,12 @@ import { formatDuration, formatMoney } from '../../lib/format.js';
 import { validateCharge } from '../../lib/charges.js';
 import * as api from '../../services/api.js';
 
-/** Añadir un cargo a una reserva ya hecha (más fotos, un retoque, tiempo extra…). */
-export function AddChargeModal({ request: r, onClose, onSaved }) {
+/**
+ * Añadir un cargo a una reserva ya hecha (más fotos, un retoque, tiempo extra…).
+ * Con `propose` (asistente) el cargo no se suma todavía: queda pendiente hasta que un
+ * administrador lo apruebe.
+ */
+export function AddChargeModal({ request: r, onClose, onSaved, propose = false }) {
   const db = useDb();
   const extras = db.extras.filter((x) => x.brandId === r.brandId);
   const cur = r.currency;
@@ -17,6 +21,7 @@ export function AddChargeModal({ request: r, onClose, onSaved }) {
   const [qty, setQty] = useState('1');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -33,7 +38,8 @@ export function AddChargeModal({ request: r, onClose, onSaved }) {
     setBusy(true);
     setError(null);
     try {
-      const line = await api.addCharge(r.id, { mode, extraId, qty: Number(qty), name, amount: Number(amount) });
+      const input = { mode, extraId, qty: Number(qty), name, amount: Number(amount) };
+      const line = propose ? await api.proposeCharge(r.id, { ...input, note }) : await api.addCharge(r.id, input);
       onSaved?.(line);
       onClose();
     } catch (e) {
@@ -46,16 +52,22 @@ export function AddChargeModal({ request: r, onClose, onSaved }) {
     <Modal
       open
       onClose={onClose}
-      title="Agregar cargo"
+      title={propose ? 'Proponer cargo' : 'Agregar cargo'}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save} loading={busy} data-testid="charge-save">Agregar cargo</Button>
+          <Button onClick={save} loading={busy} data-testid="charge-save">{propose ? 'Enviar para aprobación' : 'Agregar cargo'}</Button>
         </>
       }
     >
       <div className="form">
-        <p className="muted small">El cargo se suma al total de la reserva. Después registra su pago con «+ Agregar pago». El anticipo no cambia.</p>
+        {propose ? (
+          <p className="callout callout--amber small" data-testid="charge-propose-note">
+            Un administrador debe aprobar este cargo. Hasta entonces no se suma al total ni se le cobra al cliente.
+          </p>
+        ) : (
+          <p className="muted small">El cargo se suma al total de la reserva. Después registra su pago con «+ Agregar pago». El anticipo no cambia.</p>
+        )}
         {error && <p className="callout callout--red" role="alert">{error}</p>}
         <div className="seg" role="radiogroup" aria-label="Tipo de cargo">
           {[['extra', 'Extra del catálogo'], ['custom', 'Otro concepto']].map(([k, label]) => (
@@ -92,10 +104,16 @@ export function AddChargeModal({ request: r, onClose, onSaved }) {
           </div>
         )}
 
+        {propose && (
+          <Field label="Nota para el administrador" hint="Opcional. Por ejemplo: «El cliente pidió 3 fotos más el día de la sesión».">
+            <textarea rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} data-testid="charge-note" />
+          </Field>
+        )}
+
         <dl className="pay-modal__facts" data-testid="charge-preview">
           <div><dt>Total actual</dt><dd>{formatMoney(r.quote.total, cur)}</dd></div>
           <div><dt>Cargo</dt><dd>+ {formatMoney(lineTotal, cur)}</dd></div>
-          <div><dt>Nuevo total</dt><dd><strong>{formatMoney(r.quote.total + lineTotal, cur)}</strong></dd></div>
+          <div><dt>{propose ? 'Total si se aprueba' : 'Nuevo total'}</dt><dd><strong>{formatMoney(r.quote.total + lineTotal, cur)}</strong></dd></div>
         </dl>
         {minutes > 0 && <p className="muted small">También suma {formatDuration(minutes)} a la duración de la sesión.</p>}
       </div>

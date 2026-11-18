@@ -1,4 +1,5 @@
 import { BadgePicker } from '../../components/admin/BadgePicker.jsx';
+import { extraIsPhysical, extraLooksPhysical, planIsPhysical, planPhysicalLines } from '../../lib/physical.js';
 import { PlanLimitEditor } from '../../components/admin/PlanLimitEditor.jsx';
 import { availabilityText, planAvailability, planUses, validateLimit } from '../../lib/planLimits.js';
 import { formatShortDate, toISODate, today } from '../../lib/date.js';
@@ -65,7 +66,7 @@ export function Catalog() {
                     <PlanImage plan={p} ratio="1 / 1" variant={i} label="Muestra" className="cat-item__img" />
                     <div className="cat-item__info">
                       <strong>{p.name}{badgeOf(p) && <> <BadgeChip badge={badgeOf(p)} /></>}</strong>
-                      <span className="muted small">{p.category} · {formatDuration(p.durationMin)}</span>
+                      <span className="muted small">{p.category} · {formatDuration(p.durationMin)}{planIsPhysical(p) ? ' · 🖨️ Material físico' : ''}</span>
                       <LimitChip plan={p} requests={db.requests} />
                     </div>
                     <span className="cat-item__price">{formatMoney(p.price, brand.currency)}</span>
@@ -84,6 +85,7 @@ export function Catalog() {
                         {x.pricing === 'per_unit' ? `Por unidad (máx. ${x.maxQty})` : 'Precio fijo'} ·{' '}
                         {x.addsMinutes ? `+${formatDuration(x.addsMinutes)} de sesión${x.pricing === 'per_unit' ? ' c/u' : ''} · ` : ''}
                         {x.expressDelivery ? 'Entrega en 72 h · ' : ''}
+                        {extraIsPhysical(x) ? '🖨️ Material físico · ' : ''}
                         {x.appliesTo?.length ? `Solo: ${x.appliesTo.map((id) => plans.find((p) => p.id === id)?.name).filter(Boolean).join(', ')}` : 'Todos los planes'}
                       </span>
                     </div>
@@ -206,11 +208,13 @@ function CatalogEditor({ editing, plans, used, currency, onClose, onSave }) {
             <input type="checkbox" checked={!!item.expressDelivery} onChange={(e) => set({ expressDelivery: e.target.checked })} /> Entrega exprés: acorta la entrega a 72 horas (Seguimientos)
           </label>
         )}
+        {!isPlan && <PhysicalCheck item={item} auto={extraLooksPhysical(item)} onChange={(physical) => set({ physical })} />}
         {isPlan && (
           <>
             <Field label="Incluye" hint="Un elemento por línea.">
               <textarea rows={3} value={item.deliverables.join('\n')} onChange={(e) => set({ deliverables: e.target.value.split('\n').filter((l) => l.trim()) })} />
             </Field>
+            <PhysicalCheck item={item} auto={planPhysicalLines(item).length > 0} lines={planPhysicalLines(item)} isPlan onChange={(physical) => set({ physical })} />
             <ImageSlot
               label="Imagen del plan"
               hint="Elige de la biblioteca o sube una nueva. Recomendado vertical 4:5. También se gestiona en Personalización."
@@ -255,6 +259,33 @@ function CatalogEditor({ editing, plans, used, currency, onClose, onSave }) {
         )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Casilla «Material físico». Sin tocarla se detecta por el texto (impresión, canvas, álbum, 8x10…);
+ * si se marca o desmarca distinto de lo detectado, se guarda la elección (physical: true/false).
+ */
+function PhysicalCheck({ item, auto, lines = [], isPlan = false, onChange }) {
+  const on = typeof item.physical === 'boolean' ? item.physical : auto;
+  const hint = !on
+    ? isPlan
+      ? 'Márcalo si el plan incluye impresiones, canvas, álbum… Así aparece la etapa «Impresión» en el seguimiento.'
+      : 'Márcalo si es una impresión, canvas, álbum, cuadro… Así aparece la etapa «Impresión» en el seguimiento.'
+    : isPlan
+      ? lines.length
+        ? `En el seguimiento se mostrará: ${lines.join(' · ')}.`
+        : 'Escribe el material en «Incluye» (ej.: Impresión 8x10) para que se vea en el seguimiento.'
+      : 'Quien lo elija tendrá la etapa «Impresión» en el seguimiento.';
+  return (
+    <div className="field" data-testid="physical-field">
+      <label className="check-inline">
+        <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked === auto ? undefined : e.target.checked)} data-testid="physical-check" />{' '}
+        {isPlan ? 'Incluye material físico (impresión, canvas, álbum…)' : 'Es material físico (impresión, canvas, álbum…)'}
+        {on && auto && typeof item.physical !== 'boolean' && <span className="muted small"> · detectado automáticamente</span>}
+      </label>
+      <p className="field__hint small muted">{hint}</p>
+    </div>
   );
 }
 

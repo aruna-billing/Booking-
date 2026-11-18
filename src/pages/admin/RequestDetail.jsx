@@ -21,6 +21,7 @@ import { ClientTimeline } from '../../components/admin/ClientTimeline.jsx';
 import { WhatsAppModal } from '../../components/admin/WhatsAppModal.jsx';
 import { RescheduleModal } from '../../components/admin/RescheduleModal.jsx';
 import { isEventBrand } from '../../data/brands.js';
+import { chargeLabel, pendingChargesOf } from '../../lib/charges.js';
 
 const REJECT_PRESETS = ['El monto no coincide con el anticipo', 'Comprobante ilegible', 'No se encontró el depósito en la cuenta'];
 export const SESSION_REJECT_PRESETS = ['Fecha no disponible', 'Comprobante no válido', 'El monto no coincide con el anticipo', 'Datos incompletos'];
@@ -33,6 +34,7 @@ export function RequestDetail({ id }) {
   const r = db.requests.find((x) => x.id === id);
   const [dialog, setDialog] = useState(null); // 'reject' | 'cancel' | 'whatsapp' | 'payment' | 'charge'
   const [removingCharge, setRemovingCharge] = useState(null);
+  const [rejectingCharge, setRejectingCharge] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(null);
 
@@ -47,6 +49,8 @@ export function RequestDetail({ id }) {
   const isManager = can('payments.manage'); // administrador
   const decidesSessions = !isManager && can('sessions.decide'); // asistente
   const hasReceipt = r.paymentStatus === 'submitted' || r.paymentStatus === 'verified';
+  const proposed = pendingChargesOf(r);
+  const proposesCharges = !isManager && can('charges.propose'); // asistente
   const run = async (key, fn, msg) => {
     setBusy(key);
     try {
@@ -122,6 +126,9 @@ export function RequestDetail({ id }) {
         {can('requests.manage') && r.status !== 'cancelled' && r.status !== 'completed' && (
           <Button variant="secondary" onClick={() => setDialog('move')} data-testid="move-button">Cambiar fecha</Button>
         )}
+        {proposesCharges && r.status !== 'cancelled' && (
+          <Button variant="secondary" onClick={() => setDialog('propose')} data-testid="propose-charge">Proponer cargo</Button>
+        )}
         <Button variant="ghost" onClick={() => setDialog('whatsapp')} data-testid="wa-button">Mensaje de WhatsApp</Button>
         {can('requests.manage') && r.status !== 'cancelled' && r.status !== 'completed' && (
           <Button variant="danger-ghost" onClick={() => setDialog('cancel')}>Cancelar reserva</Button>
@@ -135,6 +142,14 @@ export function RequestDetail({ id }) {
       )}
       {isManager && r.status === 'pending_review' && r.paymentStatus !== 'verified' && r.paymentStatus !== 'submitted' && (
         <p className="muted small">Para confirmar, primero debe existir un comprobante verificado.</p>
+      )}
+
+      {proposed.length > 0 && (
+        <p className="callout callout--amber" role="status" data-testid="pending-charges-callout">
+          {isManager
+            ? `${proposed.length === 1 ? 'Hay 1 cargo propuesto' : `Hay ${proposed.length} cargos propuestos`} por el equipo esperando tu aprobación. Revísalos en «Reserva», debajo del desglose.`
+            : `${proposed.length === 1 ? '1 cargo propuesto espera' : `${proposed.length} cargos propuestos esperan`} la aprobación de un administrador. No se suman al total hasta entonces.`}
+        </p>
       )}
 
       <div className="detail-grid">
@@ -182,6 +197,34 @@ export function RequestDetail({ id }) {
                       )}
                     </th>
                     <td className="num">{formatMoney(l.total, cur)}</td>
+                  </tr>
+                ))}
+                {proposed.map((c) => (
+                  <tr key={c.id} className="is-proposed" data-testid="pending-charge">
+                    <th scope="row">
+                      {chargeLabel(c)}
+                      <span className="line-note">
+                        <span className="badge badge--amber">Por aprobar</span>
+                        Propuesto por {c.proposedBy} · {formatShortDate(String(c.proposedAt).slice(0, 10))}
+                      </span>
+                      {c.note && <span className="line-note line-note--quote">«{c.note}»</span>}
+                      {r.status !== 'cancelled' || isManager ? (
+                        <span className="line-actions">
+                          {isManager && r.status !== 'cancelled' && (
+                            <Button size="sm" loading={busy === `ok-${c.id}`} onClick={() => run(`ok-${c.id}`, () => api.approveCharge(r.id, c.id), `Cargo aprobado: ${chargeLabel(c)} (${formatMoney(c.total, cur)})`)} data-testid="charge-approve">
+                              Aprobar
+                            </Button>
+                          )}
+                          {isManager && (
+                            <Button size="sm" variant="danger-ghost" onClick={() => setRejectingCharge(c)} data-testid="charge-reject">Rechazar</Button>
+                          )}
+                          {!isManager && c.proposedBy === user?.name && (
+                            <button type="button" className="link-btn small" disabled={busy === `wd-${c.id}`} onClick={() => run(`wd-${c.id}`, () => api.withdrawCharge(r.id, c.id), 'Cargo retirado')} data-testid="charge-withdraw">Retirar</button>
+                          )}
+                        </span>
+                      ) : null}
+                    </th>
+                    <td className="num muted" title="No se suma al total hasta que se apruebe">+ {formatMoney(c.total, cur)}</td>
                   </tr>
                 ))}
                 {r.quote.discount > 0 && (
@@ -301,6 +344,24 @@ export function RequestDetail({ id }) {
         </div>
       </div>
 
+      {dialog === 'propose' && (
+        <AddChargeModal
+          propose
+          request={r}
+          onClose={() => setDialog(null)}
+          onSaved={(l) => toast(`Cargo enviado para aprobación: ${chargeLabel(l)} (${formatMoney(l.total, r.currency)})`, 'green')}
+        />
+      )}
+      <ConfirmDialog
+        open={!!rejectingCharge}
+        onClose={() => setRejectingCharge(null)}
+        title="Rechazar cargo"
+        message={rejectingCharge ? `«${chargeLabel(rejectingCharge)}» (${formatMoney(rejectingCharge.total, r.currency)}), propuesto por ${rejectingCharge.proposedBy}, no se sumará al total. Queda anotado en el historial.` : ''}
+        reasonLabel="Motivo (opcional)"
+        confirmLabel="Rechazar cargo"
+        danger
+        onConfirm={(reason) => api.rejectCharge(r.id, rejectingCharge.id, reason).then(() => toast('Cargo rechazado', 'neutral'), (e) => toast(e.message, 'red'))}
+      />
       {dialog === 'charge' && (
         <AddChargeModal
           request={r}

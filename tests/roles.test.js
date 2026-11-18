@@ -11,8 +11,8 @@ test('el administrador tiene todos los permisos', () => {
   PERMISSIONS.forEach((p) => assert.equal(can(admin, p.key), true, p.key));
 });
 
-test('la asistente ve solicitudes, comprobantes y seguimientos; decide sesiones y marca etapas', () => {
-  assert.deepEqual([...ROLES.assistant.permissions].sort(), ['calendar.view', 'receipts.view', 'requests.view', 'sessions.decide', 'tracking.update', 'tracking.view']);
+test('la asistente ve solicitudes, comprobantes y seguimientos; decide sesiones, marca etapas y propone cargos', () => {
+  assert.deepEqual([...ROLES.assistant.permissions].sort(), ['calendar.view', 'charges.propose', 'receipts.view', 'requests.view', 'sessions.decide', 'tracking.update', 'tracking.view']);
   for (const p of ['dashboard.view', 'finance.view', 'payments.manage', 'requests.manage', 'catalog.manage', 'web.manage', 'brands.manage', 'users.manage']) {
     assert.equal(can(asis, p), false, p);
   }

@@ -1804,3 +1804,11 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+
+/* Cargos propuestos por un asistente, a la espera de aprobación */
+.callout--amber { background: var(--amber-bg); color: var(--amber); }
+.table--lines tr.is-proposed th { font-weight: inherit; }
+.table--lines tr.is-proposed { background: color-mix(in srgb, var(--amber-bg) 45%, transparent); }
+.line-note .badge { font-size: .6875rem; padding: 1px 6px; }
+.line-note--quote { font-style: italic; }
+.line-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center; }

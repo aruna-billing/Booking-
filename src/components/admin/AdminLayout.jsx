@@ -10,6 +10,7 @@ import { ROLES } from '../../data/roles.js';
 import { initials } from '../../lib/format.js';
 import { navigate } from '../../lib/router.jsx';
 import { alertOf } from '../../lib/tracking.js';
+import { pendingChargesOf } from '../../lib/charges.js';
 import { LIVE } from '../../lib/mode.js';
 import { getCloudStatus, setCloudStatus, useCloudStatus } from '../../store/cloudStatus.js';
 import { retrySave } from '../../services/cloud.js';
@@ -84,7 +85,8 @@ export function AdminLayout({ title, perm, children }) {
   const inScope = (brandId) => canSeeBrand(user, brandId) && (brandFilter === 'all' || brandId === brandFilter);
   const inBrand = (r) => inScope(r.brandId);
   const counts = {
-    pending: db.requests.filter((r) => inBrand(r) && r.status === 'pending_review').length,
+    // En revisión, y para quien aprueba pagos, solicitudes con cargos propuestos por aprobar.
+    pending: db.requests.filter((r) => inBrand(r) && (r.status === 'pending_review' || (userCan('payments.manage') && pendingChargesOf(r).length > 0))).length,
     receipts: db.requests.filter((r) => inBrand(r) && r.paymentStatus === 'submitted').length,
     // Seguimientos que necesitan atención: entregas vencidas, sesiones pasadas sin marcar
     // y clientes con el plazo para elegir sus fotos vencido.

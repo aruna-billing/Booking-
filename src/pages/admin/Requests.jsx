@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useDb } from '../../store/mockDb.js';
 import { useAdmin } from '../../components/admin/AdminLayout.jsx';
 import { BrandDot, ConfirmDialog, PageHeader } from '../../components/admin/parts.jsx';
-import { EmptyState, PaymentStatusBadge, RequestStatusBadge, useToast } from '../../components/ui/misc.jsx';
+import { Badge, EmptyState, PaymentStatusBadge, RequestStatusBadge, useToast } from '../../components/ui/misc.jsx';
 import { REQUEST_STATUS, PAYMENT_STATUS } from '../../data/statuses.js';
 import { Link, navigate, usePath } from '../../lib/router.jsx';
 import { formatShortDate, formatTime, formatDateTime } from '../../lib/date.js';
@@ -11,6 +11,7 @@ import { balanceDue } from '../../lib/finance.js';
 import { waMessage } from '../../lib/whatsapp.js';
 import { copyText } from '../../components/admin/WhatsAppModal.jsx';
 import * as api from '../../services/api.js';
+import { pendingChargesOf } from '../../lib/charges.js';
 
 export function Requests() {
   const db = useDb();
@@ -18,9 +19,10 @@ export function Requests() {
   const toast = useToast();
   const [deleting, setDeleting] = useState(null);
   const path = usePath();
-  const initialStatus = new URLSearchParams(path.split('?')[1] ?? '').get('estado') ?? 'all';
+  const params = new URLSearchParams(path.split('?')[1] ?? '');
+  const initialStatus = params.get('estado') ?? 'all';
   const [status, setStatus] = useState(initialStatus);
-  const [payment, setPayment] = useState('all');
+  const [payment, setPayment] = useState(params.get('cargos') ? 'charges' : 'all');
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('created');
 
@@ -35,7 +37,7 @@ export function Requests() {
     return db.requests
       .filter((r) => inScope(r.brandId))
       .filter((r) => status === 'all' || r.status === status)
-      .filter((r) => payment === 'all' || r.paymentStatus === payment)
+      .filter((r) => payment === 'all' || (payment === 'charges' ? pendingChargesOf(r).length > 0 : r.paymentStatus === payment))
       .filter((r) => !term || `${r.client.firstName} ${r.client.lastName} ${r.client.email} ${r.id} ${r.planName}`.toLowerCase().includes(term))
       .sort((a, b) => (sort === 'created' ? b.createdAt.localeCompare(a.createdAt) : (a.date + a.time).localeCompare(b.date + b.time)));
   }, [db.requests, brandFilter, inScope, status, payment, q, sort]);
@@ -61,6 +63,7 @@ export function Requests() {
           <select value={payment} onChange={(e) => setPayment(e.target.value)}>
             <option value="all">Todos</option>
             {Object.entries(PAYMENT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            <option value="charges">Con cargos por aprobar</option>
           </select>
         </label>
         <label>
@@ -108,6 +111,9 @@ export function Requests() {
                       <span className="muted small cell-due">Falta {formatMoney(balanceDue(r), r.currency)}</span>
                     )}
                     {r.status !== 'cancelled' && balanceDue(r) === 0 && <span className="small cell-due ok">Pagado</span>}
+                    {pendingChargesOf(r).length > 0 && (
+                      <span className="cell-due" data-testid="row-pending-charges"><Badge tone="amber">{pendingChargesOf(r).length === 1 ? '1 cargo por aprobar' : `${pendingChargesOf(r).length} cargos por aprobar`}</Badge></span>
+                    )}
                   </td>
                   <td data-label="Solicitud"><RequestStatusBadge status={r.status} /></td>
                   <td data-label="Pago"><PaymentStatusBadge status={r.paymentStatus} /></td>

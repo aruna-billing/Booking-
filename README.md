@@ -46,6 +46,33 @@ npm run build      # sitio estático en dist/
   - Aviso en el menú (número rojo), en el dashboard y en cada tarjeta.
 - **Rol Asistente:** ve Seguimientos y puede marcar fotos realizadas, la selección y las entregas. No puede deshacer pasos.
 
+## Material físico: etapa «Impresión»
+
+Si el cliente lleva material físico (impresión 8x10, canvas 16x20, álbum, cuadro…), su
+línea de tiempo tiene un paso más entre Selección y Entrega:
+
+`Solicitud → Reservado → Día de las fotos → Selección → Impresión → Entrega`
+
+- **Cuándo aparece:** si el plan lo incluye (una línea de «Incluye» como «Impresión 8x10») o si
+  eligió un extra físico (también un cargo añadido y aprobado después). El plan Básico sin material
+  + un extra «Canvas 16x20» también la tiene. Si no hay material físico, el paso no aparece.
+- **Detección automática:** por el texto (impresión, canvas/canva, lienzo, álbum, libro, cuadro,
+  marco, ampliación, medidas como 8x10…). En **Planes y extras**, cada plan y extra tiene la casilla
+  «Material físico» para corregirlo a mano.
+- **Pasos:** tras «Ya eligió sus fotos» → **Enviado a imprimir** (fecha + nota: laboratorio, pedido)
+  → **Material listo** → se habilita «Marcar como entregado». Se guarda en `r.print`
+  (`orderedAt`, `note`, `readyAt`) dentro de la reserva; no requiere cambios en Supabase.
+- «Deshacer último paso» también deshace estos dos pasos.
+
+## Cargos propuestos por el asistente
+
+- En el detalle de una solicitud, el asistente pulsa **«Proponer cargo»**: elige un extra del catálogo (con cantidad) o escribe un concepto y un monto, y puede dejar una nota para el administrador.
+- El cargo queda **«Por aprobar»**. Sale en el desglose de la reserva, pero **no se suma al total** ni al saldo, y el cliente no lo ve.
+- El administrador lo ve en el número del menú «Solicitudes», en «Necesitan atención» del dashboard y con el filtro **Pago → «Con cargos por aprobar»**. Desde el detalle lo **aprueba** (se suma al total, al saldo y, si el extra suma tiempo, a la duración) o lo **rechaza** con un motivo opcional.
+- Mientras esté pendiente, quien lo propuso puede **retirarlo**. Todo queda en el historial: quién lo propuso, quién lo aprobó o rechazó y por qué.
+- Los administradores siguen añadiendo cargos directamente con «+ Agregar cargo».
+- **En modo real** la base de datos tampoco deja que un asistente cambie el precio de una reserva, aunque manipule el navegador (`guard_booking_quote` en `supabase/01_instalacion.sql`).
+
 ## Rutas
 
 | Ruta | Pantalla |
