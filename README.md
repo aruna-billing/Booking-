@@ -49,9 +49,10 @@ npm run build      # sitio estático en dist/
 ## Material físico: etapa «Impresión»
 
 Si el cliente lleva material físico (impresión 8x10, canvas 16x20, álbum, cuadro…), su
-línea de tiempo tiene un paso más entre Selección y Entrega:
+línea de tiempo tiene un paso más **al final**, porque el cliente elige qué imprimir de las fotos
+ya editadas:
 
-`Solicitud → Reservado → Día de las fotos → Selección → Impresión → Entrega`
+`Solicitud → Reservado → Día de las fotos → Selección → Entrega → Impresión`
 
 - **Cuándo aparece:** si el plan lo incluye (una línea de «Incluye» como «Impresión 8x10») o si
   eligió un extra físico (también un cargo añadido y aprobado después). El plan Básico sin material
@@ -59,9 +60,10 @@ línea de tiempo tiene un paso más entre Selección y Entrega:
 - **Detección automática:** por el texto (impresión, canvas/canva, lienzo, álbum, libro, cuadro,
   marco, ampliación, medidas como 8x10…). En **Planes y extras**, cada plan y extra tiene la casilla
   «Material físico» para corregirlo a mano.
-- **Pasos:** tras «Ya eligió sus fotos» → **Enviado a imprimir** (fecha + nota: laboratorio, pedido)
-  → **Material listo** → se habilita «Marcar como entregado». Se guarda en `r.print`
-  (`orderedAt`, `note`, `readyAt`) dentro de la reserva; no requiere cambios en Supabase.
+- **Pasos:** al marcar la entrega de las fotos se abre la impresión → **Enviado a imprimir** (fecha +
+  nota: laboratorio, pedido) → **Material entregado**. Se guarda en `r.print` (`orderedAt`, `note`,
+  `readyAt`) dentro de la reserva; no requiere cambios en Supabase. Las entregas hechas antes de
+  existir esta etapa cuentan como completas.
 - «Deshacer último paso» también deshace estos dos pasos.
 
 ## Mensaje de WhatsApp «Fotos entregadas»

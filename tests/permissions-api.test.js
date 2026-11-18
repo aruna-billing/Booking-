@@ -90,10 +90,10 @@ test('asistente: propone cargos; solo un administrador los aprueba o rechaza', a
   assert.match(r.history.at(-1).label, /rechazado.*Ya estaba incluido/);
 });
 
-test('impresión: solo con material físico, tras la selección; bloquea la entrega hasta que esté listo', async () => {
+test('impresión: va después de la entrega y solo con material físico', async () => {
   setCurrentUser('u-asist');
   // req-1036: en edición (boda clásica), sin material físico
-  await assert.rejects(api.markPrintOrdered('req-1036', {}), /no lleva material/);
+  await assert.rejects(api.markPrintOrdered('req-1036', {}), /después de entregar/);
   // Se le añade una foto impresa (como si la hubiera elegido de extra)
   setState((s) => ({
     ...s,
@@ -101,29 +101,37 @@ test('impresión: solo con material físico, tras la selección; bloquea la entr
       r.id === 'req-1036' ? { ...r, quote: { ...r.quote, lines: [...r.quote.lines, { id: 'el-x-padres', name: 'Libro para padres 20×20', unitPrice: 240, quantity: 2, total: 1000, minutes: 0 }] } } : r
     ),
   }));
-  await assert.rejects(api.markDelivered('req-1036', {}), /material físico/);
-  await assert.rejects(api.markPrintOrdered('req-1036', { date: '2999-01-01' }), /futura/);
-  await api.markPrintOrdered('req-1036', { note: 'Laboratorio X, pedido 22' });
+  await assert.rejects(api.markPrintOrdered('req-1036', {}), /después de entregar/);
+  // La entrega no se bloquea; abre la etapa «Impresión»
+  await api.markDelivered('req-1036', { galleryUrl: 'https://galeria.example/manuel' });
   let r = getState().requests.find((x) => x.id === 'req-1036');
+  assert.deepEqual(r.print, {});
+  assert.match(r.history.at(-1).label, /sigue la impresión/);
+  await assert.rejects(api.markPrintOrdered('req-1036', { date: '2999-01-01' }), /futura/);
+  await assert.rejects(api.markPrintOrdered('req-1036', { date: '2000-01-01' }), /antes de la entrega/);
+  await api.markPrintOrdered('req-1036', { note: 'Laboratorio X, pedido 22' });
+  r = getState().requests.find((x) => x.id === 'req-1036');
   assert.ok(r.print.orderedAt);
   assert.equal(r.print.note, 'Laboratorio X, pedido 22');
   assert.match(r.history.at(-1).label, /enviado a imprimir/);
   await api.markPrintReady('req-1036', {});
   r = getState().requests.find((x) => x.id === 'req-1036');
   assert.ok(r.print.readyAt);
-  await api.markDelivered('req-1036', { galleryUrl: 'https://galeria.example/manuel' });
-  // Deshacer: entrega → listo → enviado a imprimir
+  assert.match(r.history.at(-1).label, /entregado al cliente/);
+  // Deshacer: material entregado → enviado a imprimir → entrega
   setCurrentUser('u-admin');
   await api.undoTrackingStep('req-1036');
-  await api.undoTrackingStep('req-1036');
   r = getState().requests.find((x) => x.id === 'req-1036');
-  assert.equal(r.deliveredAt, null);
   assert.equal(r.print.readyAt, null);
   assert.ok(r.print.orderedAt);
   await api.undoTrackingStep('req-1036');
   r = getState().requests.find((x) => x.id === 'req-1036');
+  assert.ok(r.print && !r.print.orderedAt && r.deliveredAt); // por imprimir, sigue entregado
+  await api.undoTrackingStep('req-1036');
+  r = getState().requests.find((x) => x.id === 'req-1036');
+  assert.equal(r.deliveredAt, null);
   assert.equal(r.print, null);
-  assert.equal(r.status, 'completed'); // sigue en edición
+  assert.equal(r.status, 'completed'); // vuelve a edición
 });
 
 test('enlace de la galería: se puede guardar después de entregar', async () => {

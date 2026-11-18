@@ -94,7 +94,9 @@ export function Tracking() {
     const b = brandsById[r.brandId];
     const future = r.date > ref;
     const physical = physicalItemsOf(r, db.plans, db.extras);
-    const printPending = x.stage === 'shot' && physical.length > 0 && printStateOf(r) !== 'ready';
+    // Impresión: va después de la entrega (r.print se crea al entregar).
+    const showPrint = x.stage === 'delivered' && physical.length > 0 && !!r.print;
+    const printPending = showPrint && printStateOf(r) !== 'ready';
     return (
       <li key={r.id} className={`tcard tcard--${alert?.tone ?? 'neutral'}`} data-testid={`tcard-${r.id}`}>
         <div className="tcard__head">
@@ -121,9 +123,9 @@ export function Tracking() {
             {r.selection?.count != null && ` · ${r.selection.count} foto${r.selection.count === 1 ? '' : 's'}`}
           </p>
         )}
-        {x.stage === 'shot' && physical.length > 0 && (
+        {showPrint && (
           <p className="tcard__print small" data-testid="tcard-print" title={physicalSummary(physical)}>
-            🖨️ {printStateOf(r) === 'ready' ? 'Material listo' : printStateOf(r) === 'ordered' ? 'En impresión' : 'Material por imprimir'} · {physicalSummary(physical)}
+            🖨️ {printStateOf(r) === 'ready' ? 'Material entregado' : printStateOf(r) === 'ordered' ? 'En impresión' : 'Material por imprimir'} · {physicalSummary(physical)}
           </p>
         )}
         {x.stage === 'delivered' && (
@@ -159,7 +161,7 @@ export function Tracking() {
             Gestionar impresión
           </Link>
         )}
-        {can('tracking.update') && x.stage === 'shot' && !printPending && (
+        {can('tracking.update') && x.stage === 'shot' && (
           <Button size="sm" onClick={() => setDelivering(r)} aria-label={`Marcar entrega de ${r.client.firstName} ${r.client.lastName}`}>
             Marcar entregado
           </Button>

@@ -13,7 +13,8 @@ import { WhatsAppModal } from './WhatsAppModal.jsx';
 const fmtDate = (iso) => (iso ? formatShortDate(iso.slice(0, 10)) : '');
 
 /**
- * Línea de tiempo del cliente: Solicitud → Reservado → Día de las fotos → Selección → [Impresión] → Entrega.
+ * Línea de tiempo del cliente: Solicitud → Reservado → Día de las fotos → Selección → Entrega → [Impresión].
+ * La impresión va al final: el cliente elige qué imprimir de las fotos ya editadas.
  * «Impresión» solo aparece si el plan o los extras llevan material físico (lib/physical.js).
  * Muestra la fecha de cada paso y la siguiente acción.
  */
@@ -35,7 +36,8 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
   const physical = physicalItemsOf(r, db.plans, db.extras);
   const hasPrint = physical.length > 0;
   const printState = printStateOf(r);
-  const printPending = hasPrint && stage === 'shot' && printState !== 'ready';
+  // r.print se crea al entregar; las entregas de antes de esta etapa (sin r.print) cuentan como completas.
+  const printPending = hasPrint && stage === 'delivered' && !!r.print && printState !== 'ready';
 
   const steps = [
     { key: 'request', label: 'Solicitud', date: fmtDate(r.createdAt), note: 'Recibida' },
@@ -58,23 +60,23 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
             ? sel?.sentAt ? `Elegir antes del ${formatShortDate(selectionDueDate(r, brand))}` : `Por enviar · ${selPlazo} para elegir`
             : `${selPlazo} para elegir`,
     },
-    hasPrint && {
-      key: 'print',
-      label: 'Impresión',
-      date: r.print?.readyAt ? `Listo ${fmtDate(r.print.readyAt)}` : r.print?.orderedAt ? `Enviado ${fmtDate(r.print.orderedAt)}` : stage === 'delivered' ? 'Entregado' : stage === 'shot' ? 'Por enviar' : 'Tras la selección',
-      note: physicalSummary(physical),
-      noteTitle: physicalSummary(physical),
-    },
     {
       key: 'delivered',
       label: 'Entrega',
-      date: r.deliveredAt ? fmtDate(r.deliveredAt) : idx >= 3 ? `Vence ${formatShortDate(due)}` : hasPrint ? 'Tras la impresión' : 'Tras la selección',
+      date: r.deliveredAt ? fmtDate(r.deliveredAt) : idx >= 3 ? `Vence ${formatShortDate(due)}` : 'Tras la selección',
       note: r.deliveredAt ? 'Entregadas' : days,
+    },
+    hasPrint && {
+      key: 'print',
+      label: 'Impresión',
+      date: r.print?.readyAt ? `Entregado ${fmtDate(r.print.readyAt)}` : r.print?.orderedAt ? `Enviado ${fmtDate(r.print.orderedAt)}` : printPending ? 'Por enviar' : stage === 'delivered' ? '' : 'Tras la entrega',
+      note: physicalSummary(physical),
+      noteTitle: physicalSummary(physical),
     },
   ].filter(Boolean);
   // Pasos completados según la etapa; el siguiente es el «paso actual».
   const doneCount =
-    stage === 'delivered' ? steps.length : ({ request: 1, booked: 2, selecting: 3, shot: 4 }[stage] ?? 0) + (stage === 'shot' && hasPrint && printState === 'ready' ? 1 : 0);
+    stage === 'delivered' ? steps.length - (printPending ? 1 : 0) : ({ request: 1, booked: 2, selecting: 3, shot: 4 }[stage] ?? 0);
   const stateOf = (i) => (stage === null ? 'off' : i < doneCount ? 'done' : i === doneCount ? 'current' : 'todo');
 
   const doShot = async () => {
@@ -158,24 +160,7 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
                 {sel.note ? ` · ${sel.note}` : ''}
               </span>
             )}
-            {printPending && (
-              <span className="ctl__print small" data-testid="print-status">
-                <Badge tone={printState === 'ordered' ? 'neutral' : 'amber'}>{printState === 'ordered' ? 'En impresión' : 'Material por imprimir'}</Badge>{' '}
-                {physicalSummary(physical)}
-                {r.print?.note ? ` · ${r.print.note}` : ''}
-              </span>
-            )}
-            {can('tracking.update') && printPending && (
-              <>
-                <Button size="sm" variant={printState === 'ordered' ? 'secondary' : 'primary'} onClick={() => setSelDialog('print-ordered')} data-testid="print-ordered">
-                  {printState === 'ordered' ? 'Editar impresión' : 'Enviado a imprimir'}
-                </Button>
-                <Button size="sm" variant={printState === 'ordered' ? 'primary' : 'secondary'} onClick={() => setSelDialog('print-ready')} data-testid="print-ready">
-                  Material listo
-                </Button>
-              </>
-            )}
-            {can('tracking.update') && !printPending && (
+            {can('tracking.update') && (
               <Button size="sm" onClick={() => setDelivering(true)} data-testid="mark-delivered">
                 Marcar como entregado
               </Button>
@@ -194,6 +179,23 @@ export function ClientTimeline({ request: r, brand, extras, can }) {
             <Button size="sm" variant="secondary" onClick={() => setSelDialog('whatsapp-delivered')} data-testid="delivered-whatsapp">
               Mensaje de entrega
             </Button>
+            {printPending && (
+              <span className="ctl__print small" data-testid="print-status">
+                <Badge tone={printState === 'ordered' ? 'neutral' : 'amber'}>{printState === 'ordered' ? 'En impresión' : 'Material por imprimir'}</Badge>{' '}
+                {physicalSummary(physical)}
+                {r.print?.note ? ` · ${r.print.note}` : ''}
+              </span>
+            )}
+            {can('tracking.update') && printPending && (
+              <>
+                <Button size="sm" variant={printState === 'ordered' ? 'secondary' : 'primary'} onClick={() => setSelDialog('print-ordered')} data-testid="print-ordered">
+                  {printState === 'ordered' ? 'Editar impresión' : 'Enviado a imprimir'}
+                </Button>
+                <Button size="sm" variant={printState === 'ordered' ? 'primary' : 'secondary'} onClick={() => setSelDialog('print-ready')} data-testid="print-ready">
+                  Material entregado
+                </Button>
+              </>
+            )}
           </>
         )}
         {can('requests.manage') && (stage === 'selecting' || stage === 'shot' || stage === 'delivered') && (
@@ -368,7 +370,7 @@ export function SelectionDoneDialog({ request: r, onClose }) {
   );
 }
 
-/** Material físico: enviado a imprimir (fecha + nota) o listo para entregar (fecha). */
+/** Material físico (después de la entrega): enviado a imprimir (fecha + nota) o entregado al cliente (fecha). */
 export function PrintDialog({ request: r, kind, items = [], onClose }) {
   const toast = useToast();
   const todayIso = toISODate(today());
@@ -377,14 +379,14 @@ export function PrintDialog({ request: r, kind, items = [], onClose }) {
   const [note, setNote] = useState(r.print?.note ?? '');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const min = ready ? r.print?.orderedAt ?? r.selection?.doneAt ?? r.shotAt : r.selection?.doneAt ?? r.shotAt;
+  const min = ready ? r.print?.orderedAt ?? r.deliveredAt : r.deliveredAt;
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
       if (ready) {
         await api.markPrintReady(r.id, { date });
-        toast('Material listo: ya puedes marcar la entrega', 'green');
+        toast('Material físico entregado: seguimiento completo', 'green');
       } else {
         await api.markPrintOrdered(r.id, { date, note });
         toast('Material enviado a imprimir', 'green');
@@ -399,11 +401,11 @@ export function PrintDialog({ request: r, kind, items = [], onClose }) {
     <Modal
       open
       onClose={onClose}
-      title={`${ready ? 'Material listo' : 'Enviar a imprimir'} · ${r.client.firstName} ${r.client.lastName}`}
+      title={`${ready ? 'Material entregado' : 'Enviar a imprimir'} · ${r.client.firstName} ${r.client.lastName}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save} loading={busy} data-testid="print-save">{ready ? 'Marcar listo' : 'Guardar'}</Button>
+          <Button onClick={save} loading={busy} data-testid="print-save">{ready ? 'Marcar entregado' : 'Guardar'}</Button>
         </>
       }
     >
@@ -419,7 +421,7 @@ export function PrintDialog({ request: r, kind, items = [], onClose }) {
             ))}
           </ul>
         </div>
-        <Field label={ready ? 'Fecha en que estuvo listo' : 'Fecha de envío a imprimir'} required>
+        <Field label={ready ? 'Fecha en que se entregó' : 'Fecha de envío a imprimir'} required>
           <input type="date" value={date} min={min ?? undefined} max={todayIso} onChange={(e) => setDate(e.target.value)} data-testid="print-date" />
         </Field>
         {!ready && (

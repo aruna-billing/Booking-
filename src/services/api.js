@@ -915,38 +915,37 @@ export async function markSelectionDone(id, { date, count = '', note = '' } = {}
   );
 }
 
-const inEditing = (r) => r && r.status === 'completed' && !r.deliveredAt && !inSelection(r);
 const printNeeded = (r) => needsPrint(r, getState().plans, getState().extras);
+const printOpen = (r) => r && r.status === 'completed' && r.deliveredAt;
 
-/** Material físico: se envió a imprimir (fecha y nota, p. ej. el laboratorio). */
+/** Material físico (después de la entrega: el cliente elige qué imprimir de las fotos editadas). Se envió a imprimir. */
 export async function markPrintOrdered(id, { date, note = '' } = {}) {
   guard('tracking.update', id);
   await delay(200);
   const r = getState().requests.find((x) => x.id === id);
-  if (!inEditing(r)) throw new Error('El material se envía a imprimir cuando el cliente ya eligió sus fotos.');
+  if (!printOpen(r)) throw new Error('El material se envía a imprimir después de entregar las fotos.');
   if (!printNeeded(r)) throw new Error('Esta reserva no lleva material físico.');
-  if (r.print?.readyAt) throw new Error('El material ya está listo.');
+  if (r.print?.readyAt) throw new Error('El material ya se entregó.');
   const d = date || todayIso();
   if (d > todayIso()) throw new Error('La fecha no puede ser futura.');
-  if (r.selection?.doneAt && d < r.selection.doneAt) throw new Error('No puede ser antes de la selección del cliente.');
-  if (r.shotAt && d < r.shotAt) throw new Error('No puede ser antes del día de las fotos.');
+  if (d < r.deliveredAt) throw new Error('No puede ser antes de la entrega de las fotos.');
   const again = Boolean(r.print?.orderedAt);
   const n = String(note).trim().slice(0, 300);
   await updateRequest(id, { print: { ...(r.print ?? {}), orderedAt: d, note: n } }, `${again ? 'Impresión actualizada' : 'Material enviado a imprimir'}${n ? ` · ${n}` : ''}`);
 }
 
-/** Material físico listo para entregar. */
+/** Material físico entregado al cliente (último paso del seguimiento). */
 export async function markPrintReady(id, { date } = {}) {
   guard('tracking.update', id);
   await delay(200);
   const r = getState().requests.find((x) => x.id === id);
-  if (!inEditing(r)) throw new Error('El material se marca listo cuando el cliente ya eligió sus fotos.');
+  if (!printOpen(r)) throw new Error('El material se entrega después de entregar las fotos.');
   if (!printNeeded(r)) throw new Error('Esta reserva no lleva material físico.');
   const d = date || todayIso();
   if (d > todayIso()) throw new Error('La fecha no puede ser futura.');
-  if (r.print?.orderedAt && d < r.print.orderedAt) throw new Error('No puede estar listo antes de enviarse a imprimir.');
-  if (r.selection?.doneAt && d < r.selection.doneAt) throw new Error('No puede ser antes de la selección del cliente.');
-  await updateRequest(id, { print: { ...(r.print ?? {}), orderedAt: r.print?.orderedAt ?? d, readyAt: d } }, 'Material físico listo para entregar');
+  if (r.print?.orderedAt && d < r.print.orderedAt) throw new Error('No puede entregarse antes de enviarse a imprimir.');
+  if (d < r.deliveredAt) throw new Error('No puede ser antes de la entrega de las fotos.');
+  await updateRequest(id, { print: { ...(r.print ?? {}), orderedAt: r.print?.orderedAt ?? d, readyAt: d } }, 'Material físico entregado al cliente');
 }
 
 /** Marca la entrega de las fotos al cliente. */
@@ -956,14 +955,15 @@ export async function markDelivered(id, { date, galleryUrl = '', note = '' } = {
   const r = getState().requests.find((x) => x.id === id);
   if (!r || r.status !== 'completed' || r.deliveredAt) throw new Error('Primero marca la sesión como realizada.');
   if (inSelection(r)) throw new Error('Primero marca que el cliente ya eligió sus fotos.');
-  if (printNeeded(r) && !r.print?.readyAt) throw new Error('Primero marca el material físico como listo (etapa «Impresión»).');
   const d = date || todayIso();
   if (d > todayIso()) throw new Error('La fecha de entrega no puede ser futura.');
   if (r.shotAt && d < r.shotAt) throw new Error('La entrega no puede ser antes del día de las fotos.');
   if (r.selection?.doneAt && d < r.selection.doneAt) throw new Error('La entrega no puede ser antes de la selección.');
   const url = galleryUrl.trim();
   if (url && !URL_RE.test(url)) throw new Error('El enlace de la galería debe empezar con https://');
-  await updateRequest(id, { deliveredAt: d, galleryUrl: url, deliveryNote: note.trim() }, `Fotos entregadas al cliente${url ? ' (enlace de galería guardado)' : ''}`);
+  // Con material físico se abre la etapa «Impresión» (r.print), que va después de la entrega.
+  const print = printNeeded(r) ? { ...(r.print ?? {}) } : r.print ?? null;
+  await updateRequest(id, { deliveredAt: d, galleryUrl: url, deliveryNote: note.trim(), print }, `Fotos entregadas al cliente${url ? ' (enlace de galería guardado)' : ''}${printNeeded(r) ? ' · sigue la impresión' : ''}`);
 }
 
 /** Guarda o cambia el enlace de la galería de una sesión ya entregada (p. ej. al pegarlo en el mensaje de WhatsApp). */
@@ -977,14 +977,14 @@ export async function saveGalleryUrl(id, url) {
   await updateRequest(id, { galleryUrl: link }, link ? 'Enlace de la galería guardado' : 'Enlace de la galería quitado');
 }
 
-/** Deshace la última etapa (entregado → material listo → en impresión → en edición → selección → reservado). Solo administradores. */
+/** Deshace la última etapa (material entregado → en impresión → entregado → en edición → selección → reservado). Solo administradores. */
 export async function undoTrackingStep(id) {
   guard('requests.manage', id);
   await delay(200);
   const r = getState().requests.find((x) => x.id === id);
-  if (r.deliveredAt) return updateRequest(id, { deliveredAt: null, galleryUrl: '', deliveryNote: '' }, 'Entrega deshecha: vuelve a «en edición»');
-  if (r.print?.readyAt) return updateRequest(id, { print: { ...r.print, readyAt: null } }, 'Material listo deshecho: vuelve a «en impresión»');
-  if (r.print?.orderedAt) return updateRequest(id, { print: null }, 'Envío a imprimir deshecho: vuelve a «por imprimir»');
+  if (r.print?.readyAt) return updateRequest(id, { print: { ...r.print, readyAt: null } }, 'Material entregado deshecho: vuelve a «en impresión»');
+  if (r.print?.orderedAt) return updateRequest(id, { print: { note: '' } }, 'Envío a imprimir deshecho: vuelve a «por imprimir»');
+  if (r.deliveredAt) return updateRequest(id, { deliveredAt: null, galleryUrl: '', deliveryNote: '', print: null }, 'Entrega deshecha: vuelve a «en edición»');
   if (r.selection?.doneAt) return updateRequest(id, { selection: { ...r.selection, doneAt: null, count: null, note: '' } }, 'Selección deshecha: vuelve a «selección»');
   if (r.status === 'completed') return updateRequest(id, { status: 'confirmed', shotAt: null, selection: null }, 'Fotos realizadas deshecho: vuelve a «reservado»');
   throw new Error('No hay ninguna etapa para deshacer.');
