@@ -66,6 +66,12 @@ ya editadas:
   existir esta etapa cuentan como completas.
 - «Deshacer último paso» también deshace estos dos pasos.
 
+## Pagos automáticos a Finanzas
+
+Cada pago verificado en Booking entra solo en Finanzas como ingreso sin factura, con la fecha del día
+en que se verificó; el cliente se crea en Finanzas sin duplicarse. Función `finanzas-sync` + webhook en
+`booking_requests`. Necesita Finanzas 5.9.0 y su SQL. Instalación: `docs/FINANZAS.md`.
+
 ## Mensaje de WhatsApp «Fotos entregadas»
 
 Al marcar una sesión como entregada se abre el mensaje «Fotos entregadas» (plantilla editable en

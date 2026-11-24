@@ -71,6 +71,10 @@ El asistente pulsa **Proponer cargo** en una solicitud. El cargo queda «Por apr
 
 Para que el cliente reciba un correo el día de sus fotos (o el día antes), ejecuta una vez `supabase/03_recordatorio.sql` en el SQL Editor y vuelve a desplegar la función `booking-emails`. Detalles en `CORREOS.md`, paso 7. El mensaje de WhatsApp «Día de la sesión» no necesita nada: ya está en el panel.
 
+## Pagos automáticos a Finanzas (opcional)
+
+Cada pago verificado aquí aparece solo en Finanzas como ingreso (sin factura), con la fecha del día en que se verificó, y el cliente se crea allá sin duplicarse. Se instala una vez: SQL en Finanzas, función `finanzas-sync` y un webhook aquí. Pasos en `FINANZAS.md`.
+
 ## Cupones de descuento
 
 En el panel → **Cupones**:
