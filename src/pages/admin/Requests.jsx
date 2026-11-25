@@ -144,14 +144,14 @@ export function Requests() {
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        title="Borrar solicitud"
-        message={deleting ? `Se borrará para siempre la solicitud de ${deleting.client.firstName} ${deleting.client.lastName} (${shortId(deleting.id)}), con sus pagos, notas, comprobante e imágenes. No se puede deshacer. Si solo quieres liberar la fecha, ábrela y usa «Cancelar reserva».` : ''}
-        confirmLabel="Borrar para siempre"
+        title="Mover a la papelera"
+        message={deleting ? `La solicitud de ${deleting.client.firstName} ${deleting.client.lastName} (${shortId(deleting.id)}) sale de las listas, de la agenda y del calendario. Puedes restaurarla tal como está (pagos, notas y comprobantes) desde la Papelera durante 30 días. Si solo quieres liberar la fecha, ábrela y usa «Cancelar reserva».` : ''}
+        confirmLabel="Mover a la papelera"
         danger
         onConfirm={async () => {
           try {
             await api.deleteRequest(deleting.id);
-            toast('Solicitud borrada', 'neutral');
+            toast('Solicitud enviada a la papelera', 'neutral');
           } catch (e) {
             toast(e.message, 'red');
           }

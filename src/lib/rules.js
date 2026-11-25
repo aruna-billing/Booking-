@@ -20,9 +20,13 @@ export function validateRules(r) {
     if (!(Number(r.bufferMin) >= 0 && Number(r.bufferMin) <= 180)) e.bufferMin = 'Entre 0 y 180 minutos.';
   }
   if (!(Number(r.maxBookingsPerDay) >= 1 && Number(r.maxBookingsPerDay) <= 50)) e.maxBookingsPerDay = 'Entre 1 y 50.';
-  if (!(Number(r.minNoticeDays) >= 0 && Number(r.minNoticeDays) <= 60)) e.minNoticeDays = 'Entre 0 y 60 días.';
+  const hours = r.minNoticeUnit === 'hours';
+  if (hours) {
+    if (!(Number.isInteger(Number(r.minNoticeHours)) && Number(r.minNoticeHours) >= 0 && Number(r.minNoticeHours) <= 720)) e.minNotice = 'Entre 0 y 720 horas (30 días).';
+  } else if (!(Number.isInteger(Number(r.minNoticeDays)) && Number(r.minNoticeDays) >= 0 && Number(r.minNoticeDays) <= 60)) e.minNotice = 'Entre 0 y 60 días.';
+  const noticeDays = hours ? Number(r.minNoticeHours) / 24 : Number(r.minNoticeDays);
   if (!(Number(r.maxAdvanceDays) >= 7 && Number(r.maxAdvanceDays) <= 730)) e.maxAdvanceDays = 'Entre 7 y 730 días (2 años).';
-  else if (Number(r.maxAdvanceDays) <= Number(r.minNoticeDays)) e.maxAdvanceDays = 'Debe ser mayor que la antelación mínima.';
+  else if (!e.minNotice && Number(r.maxAdvanceDays) <= noticeDays) e.maxAdvanceDays = 'Debe ser mayor que la antelación mínima.';
   return e;
 }
 
@@ -32,7 +36,9 @@ export function cleanRules(r) {
     ...r,
     workingDays: [...new Set(r.workingDays.map(Number))].sort((a, b) => a - b),
     maxBookingsPerDay: Number(r.maxBookingsPerDay),
-    minNoticeDays: Number(r.minNoticeDays),
+    minNoticeUnit: r.minNoticeUnit === 'hours' ? 'hours' : 'days',
+    minNoticeDays: Number(r.minNoticeDays) || 0,
+    minNoticeHours: Number(r.minNoticeHours) || 0,
     maxAdvanceDays: Number(r.maxAdvanceDays),
   };
   if (r.mode !== 'exclusive_day') {

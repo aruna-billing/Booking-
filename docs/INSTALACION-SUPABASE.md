@@ -59,6 +59,18 @@ La clave *publishable* es pública por diseño: va dentro de la web y cualquiera
 
 Cuando subas una versión nueva del proyecto, vuelve a ejecutar **`supabase/01_instalacion.sql`** completo en el SQL Editor. No borra datos y añade lo nuevo (por ejemplo, la comprobación de cupones, los cupones por plan y los planes con cupos). Si usas Google Calendar, actualiza también la función `google-calendar` con el `index.ts` nuevo.
 
+## Papelera
+
+Lo que se borra en el panel (solicitudes, cargos, cupones, marcas, usuarios, imágenes y videos) va a **Papelera** (menú del panel, solo administradores). Ahí se **restaura** tal como estaba o se **elimina para siempre**. Lo que lleva más de 30 días se elimina solo al abrir la Papelera.
+
+- Una solicitud en la papelera no ocupa agenda, no recibe recordatorios y sale de Google Calendar. Al restaurarla vuelve con su número, pagos, notas y comprobantes, y vuelve al calendario. No se reenvía ningún correo al cliente.
+- Una imagen restaurada vuelve a la biblioteca; hay que volver a elegirla donde se usaba.
+- Necesita la tabla `trash_items`: vuelve a ejecutar `supabase/01_instalacion.sql` (paso 1). Si no lo haces, al borrar una solicitud el panel lo avisa.
+
+## Antelación mínima en días u horas
+
+En **Calendario → Horario**, «Antelación mínima» se puede poner en **días** (0 = se puede reservar para hoy, 1 = desde mañana…) o en **horas** (3 = no se puede reservar un horario que empiece en menos de 3 horas). Hoy nunca se ofrecen horarios que ya pasaron. El servidor también lo comprueba: vuelve a ejecutar `supabase/01_instalacion.sql`.
+
 ## Cambiar la fecha de una reserva
 
 En una solicitud → **Cambiar fecha**: eliges el día y la hora nuevos en un calendario que muestra lo libre y lo ocupado (sin contar esta misma reserva). Puedes elegir un día cerrado, bloqueado u ocupado; el panel te avisa antes de guardar. El cambio queda en el historial, el calendario y la agenda pública se actualizan, y si usas Google Calendar el evento se mueve solo. Al terminar se abre el mensaje de WhatsApp «Cambio de fecha» para copiarlo, y si marcas «Avisar al cliente por correo» sale el correo «Cambio de fecha» (ver `CORREOS.md`). No hace falta volver a ejecutar el SQL.

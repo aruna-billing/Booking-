@@ -205,13 +205,13 @@ function UserEditor({ editing, me, brands, onClose }) {
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title="Eliminar usuario"
-        message={`${editing.user.name} dejará de tener acceso al panel. Su nombre seguirá apareciendo en el historial de las solicitudes que gestionó.`}
+        message={`${editing.user.name} dejará de tener acceso al panel. Su nombre seguirá apareciendo en el historial de las solicitudes que gestionó. Puedes restaurarlo desde la Papelera durante 30 días.`}
         confirmLabel="Eliminar"
         danger
         onConfirm={async () => {
           try {
             await api.deleteUser(editing.user.id);
-            toast('Usuario eliminado', 'red');
+            toast('Usuario enviado a la papelera', 'neutral');
             onClose();
           } catch (e) {
             setError(e.message);

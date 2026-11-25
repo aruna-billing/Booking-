@@ -23,6 +23,11 @@
 //   WEBHOOK_SECRET       el mismo de «booking-emails»
 // Ninguno va en el código ni en GitHub.
 //
+// Pagos anteriores (una sola vez): POST con la misma cabecera y el cuerpo
+//   { "action": "sync-all" }                  envía todos los pagos verificados
+//   { "action": "sync-all", "dry_run": true }  solo cuenta lo que enviaría
+// Lo que ya está en Finanzas no se duplica. Ver docs/FINANZAS.md.
+//
 // Al desplegarla, desactiva «Enforce JWT verification».
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -131,11 +136,11 @@ async function brandId(userId: string) {
   return b.id as string;
 }
 
-async function ensureClient(userId: string, brand: string, r: Any) {
+async function ensureClient(userId: string, brand: string, r: Any, cache?: Any[]) {
   const c = r.client ?? {};
   const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim();
   if (!name) return null;
-  const clients: Any[] = (await fin(`clients?select=id,name,phone,whatsapp,email&user_id=eq.${userId}`)) ?? [];
+  const clients: Any[] = cache ?? (await fin(`clients?select=id,name,phone,whatsapp,email&user_id=eq.${userId}`)) ?? [];
   const found = findClient(clients, c);
   if (found) return found.id as string;
   const created = await fin('clients', {
@@ -153,7 +158,80 @@ async function ensureClient(userId: string, brand: string, r: Any) {
       notes: `Cliente creado desde Booking (reserva ${shortId(r.id)}).`,
     }),
   });
+  if (cache && created?.[0]) cache.push(created[0]);
   return (created?.[0]?.id ?? null) as string | null;
+}
+
+// ───────────────────────── Pagos anteriores (una sola vez) ─────────────────────────
+
+/** Clave de servidor del propio proyecto de Booking (la da Supabase a la función). */
+function bookingKey() {
+  try {
+    const keys = JSON.parse(env('SUPABASE_SECRET_KEYS') || '{}');
+    if (keys.default) return keys.default as string;
+  } catch { /* sin claves nuevas */ }
+  return env('SUPABASE_SERVICE_ROLE_KEY');
+}
+
+async function bookingRequests(): Promise<Any[]> {
+  const key = bookingKey();
+  const headers: Record<string, string> = { apikey: key };
+  if (key.startsWith('eyJ')) headers.Authorization = `Bearer ${key}`;
+  const out: Any[] = [];
+  for (let from = 0; ; from += 1000) {
+    const res = await fetch(`${env('SUPABASE_URL')}/rest/v1/booking_requests?select=id,payload&order=id`, { headers: { ...headers, Range: `${from}-${from + 999}` } });
+    if (!res.ok) throw new Error(`Booking (${res.status}): ${(await res.text()).slice(0, 200)}`);
+    const page = await res.json();
+    out.push(...page);
+    if (page.length < 1000) return out;
+  }
+}
+
+/** Envía a Finanzas todos los pagos verificados de Booking. Lo que ya está no se duplica. */
+export async function syncAll(dryRun = false) {
+  const reqs = (await bookingRequests()).map((x) => ({ ...(x.payload ?? {}), id: x.payload?.id ?? x.id })).filter((r) => verifiedPayments(r).length);
+  const userId = await ownerId();
+  const brand = await brandId(userId);
+  const existing = new Set(((await fin(`payments?select=source_ref&user_id=eq.${userId}&source=eq.booking`)) ?? []).map((p: Any) => p.source_ref));
+  const clients: Any[] = (await fin(`clients?select=id,name,phone,whatsapp,email&user_id=eq.${userId}`)) ?? [];
+  const before = clients.length;
+  const rows: Any[] = [];
+  let already = 0;
+  for (const r of reqs) {
+    const todo = verifiedPayments(r).filter((p: Any) => {
+      const has = existing.has(sourceRef(r.id, p.id));
+      if (has) already++;
+      return !has;
+    });
+    if (!todo.length) continue;
+    let clientId: string | null;
+    if (dryRun) {
+      // Vista previa: no crea nada; solo cuenta los clientes que se crearían.
+      const f = findClient(clients, r.client);
+      if (!f) clients.push({ ...r.client, id: 'nuevo' });
+      clientId = 'nuevo';
+    } else clientId = await ensureClient(userId, brand, r, clients);
+    todo.forEach((p: Any) => rows.push(paymentRow(r, p, { userId, brandId: brand, clientId: clientId === 'nuevo' ? null : clientId })));
+  }
+  let added = 0;
+  if (!dryRun) {
+    for (let i = 0; i < rows.length; i += 200) {
+      const ins = await fin('payments?on_conflict=source_ref', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' }, body: JSON.stringify(rows.slice(i, i + 200)) });
+      added += ins?.length ?? 0;
+    }
+  }
+  const total = (cur: string) => rows.filter((x) => x.cur === cur).reduce((a, x) => a + x.amount, 0);
+  return {
+    dry_run: dryRun,
+    reservas_con_pagos: reqs.length,
+    pagos_nuevos: dryRun ? rows.length : added,
+    ya_estaban_en_finanzas: already,
+    clientes_nuevos: clients.length - before,
+    total_RD: total('DOP'),
+    total_US: total('USD'),
+    desde: rows.map((x) => x.date).sort()[0] ?? null,
+    hasta: rows.map((x) => x.date).sort().at(-1) ?? null,
+  };
 }
 
 // ───────────────────────── Entrada ─────────────────────────
@@ -163,6 +241,16 @@ export async function handler(req: Request): Promise<Response> {
   const secret = env('WEBHOOK_SECRET');
   if (!secret || req.headers.get('x-webhook-secret') !== secret) return json({ error: 'No autorizado.' }, 401);
   const body = await req.json().catch(() => ({}));
+  if (body.action === 'sync-all') {
+    try {
+      const out = await syncAll(body.dry_run === true);
+      console.log('finanzas-sync sync-all', out);
+      return json({ ok: true, ...out });
+    } catch (e) {
+      console.error('finanzas-sync sync-all', (e as Error).message);
+      return json({ error: (e as Error).message }, 502);
+    }
+  }
   if (body.table !== 'booking_requests' || !['INSERT', 'UPDATE'].includes(body.type)) return json({ skipped: 'no es un cambio de reserva' });
 
   const { add, remove } = diffPayments(body.record, body.type === 'UPDATE' ? body.old_record : null);

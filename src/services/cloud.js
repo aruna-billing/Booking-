@@ -212,6 +212,71 @@ function requestFilePaths(r) {
   return [...out];
 }
 
+// ───────────────────────── Papelera (tabla trash_items) ─────────────────────────
+
+const fromTrashRow = (t) => ({ id: t.id, kind: t.kind, itemId: t.item_id, brandId: t.brand_id, label: t.label, detail: t.detail, data: t.data, deletedBy: t.deleted_by, deletedAt: t.deleted_at });
+
+/** Admin: carga la papelera. */
+export async function loadTrash() {
+  const { data, error } = await supabase.from('trash_items').select('*').order('deleted_at', { ascending: false });
+  if (error) {
+    if (/trash_items|schema cache|does not exist/i.test(error.message ?? '')) throw new Error('Falta la tabla de la papelera: vuelve a ejecutar supabase/01_instalacion.sql en Supabase.');
+    throw fail(error, 'No se pudo cargar la papelera.');
+  }
+  setState((s) => ({ ...s, trash: data.map(fromTrashRow) }));
+}
+
+/** Guarda en la papelera algo ya borrado (cupón, marca, usuario, imagen, cargo). */
+export async function addTrash(item) {
+  const { error } = await supabase.from('trash_items').insert({
+    id: item.id, kind: item.kind, item_id: String(item.itemId), brand_id: item.brandId ?? null,
+    label: item.label ?? '', detail: item.detail ?? '', data: item.data, deleted_by: item.deletedBy ?? '',
+  });
+  if (error) throw fail(error, 'Se borró, pero no se pudo guardar en la papelera.');
+}
+
+export async function removeTrashRow(id) {
+  const { error } = await supabase.from('trash_items').delete().eq('id', id);
+  if (error) throw fail(error, 'No se pudo quitar de la papelera.');
+}
+
+/** Admin: manda una solicitud a la papelera (sale de la agenda y del calendario de Google). */
+export async function trashRequest(r, { by, label, detail }) {
+  // 1) Quitar el evento de Google Calendar (si lo hay).
+  if (calendar.active && ['confirmed', 'completed'].includes(r.status)) {
+    try {
+      const { data } = await supabase.from('booking_requests').update({ payload: { ...r, status: 'cancelled' } }).eq('id', r.id).select('id');
+      if (data?.length) await syncCalendar(r.id);
+    } catch {
+      /* si falla, el evento queda en Google y se puede borrar a mano */
+    }
+  }
+  // 2) Pasar la fila a la papelera (con el estado original, para restaurarla tal cual).
+  const { error } = await supabase.rpc('trash_booking_request', { p_id: r.id, p_by: by, p_label: label, p_detail: detail, p_original: r });
+  if (error) {
+    if (/trash_booking_request|schema cache|does not exist/i.test(error.message ?? '')) throw new Error('Falta la papelera en la base de datos: vuelve a ejecutar supabase/01_instalacion.sql en Supabase.');
+    throw fail(error, 'No se pudo mover a la papelera.');
+  }
+  setState((s) => ({ ...s, requests: s.requests.filter((x) => x.id !== r.id) }));
+  await loadTrash().catch(() => {});
+}
+
+/** Admin: restaura una solicitud de la papelera (vuelve a la agenda y al calendario). */
+export async function restoreRequest(trashId, status) {
+  const { data: id, error } = await supabase.rpc('restore_booking_request', { p_trash_id: trashId });
+  if (error) throw fail(error, 'No se pudo restaurar.');
+  await reloadRequest(id);
+  if (calendar.active && ['confirmed', 'completed'].includes(status)) await syncCalendar(id).catch(() => {});
+  await loadTrash().catch(() => {});
+  return id;
+}
+
+/** Borra para siempre los archivos privados (comprobantes, inspiración) de una solicitud. */
+export async function purgeRequestFiles(payload) {
+  const paths = requestFilePaths(payload);
+  if (paths.length) await supabase.storage.from('receipts').remove(paths).catch(() => {});
+}
+
 /** Admin: borra la solicitud, su evento de Google Calendar y sus archivos. */
 export async function deleteRequest(r) {
   // 1) Quitar el evento de Google Calendar (si lo hay): se marca cancelada y se sincroniza.
@@ -467,7 +532,7 @@ export function stopStaffSession() {
   privateLoaded = false;
   clearInterval(pollTimer);
   document.removeEventListener('visibilitychange', onVisible);
-  setState((s) => ({ ...s, requests: [], users: [], coupons: [], bankAccounts: s.bankAccounts.filter((a) => a.active) }));
+  setState((s) => ({ ...s, requests: [], users: [], coupons: [], trash: [], bankAccounts: s.bankAccounts.filter((a) => a.active) }));
   setCloudStatus({ staff: 'idle', saveError: null });
 }
 

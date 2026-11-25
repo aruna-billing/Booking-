@@ -517,7 +517,7 @@ function DeleteBrandDialog({ brand, db, onClose, onHide }) {
                 setBusy(true);
                 try {
                   await api.deleteBrand(brand.id);
-                  toast(`${brand.name} eliminada`, 'red');
+                  toast(`${brand.name} enviada a la papelera`, 'neutral');
                   onClose();
                 } catch (e) {
                   setError(e.message);
@@ -525,7 +525,7 @@ function DeleteBrandDialog({ brand, db, onClose, onHide }) {
                 }
               }}
             >
-              Eliminar definitivamente
+              Mover a la papelera
             </Button>
           </>
         )
@@ -543,7 +543,7 @@ function DeleteBrandDialog({ brand, db, onClose, onHide }) {
         </>
       ) : (
         <>
-          <p>Se borrará de forma permanente:</p>
+          <p>Pasará a la Papelera, donde puedes restaurarla durante 30 días:</p>
           <ul className="delete-list">
             <li>La marca y su configuración</li>
             <li>{usage.plans} plan{usage.plans === 1 ? '' : 'es'} y {usage.extras} extra{usage.extras === 1 ? '' : 's'}</li>

@@ -43,7 +43,7 @@ export function RescheduleModal({ request: r, brand, onClose, onDone }) {
     () => ({
       brandId: brand.id,
       // Sin las reglas de antelación: el equipo puede mover a cualquier día desde hoy.
-      rules: { ...rules, minNoticeDays: 0, maxAdvanceDays: Math.max(rules.maxAdvanceDays ?? 365, 730), simulatedOccupancy: 0 },
+      rules: { ...rules, minNoticeUnit: 'days', minNoticeDays: 0, maxAdvanceDays: Math.max(rules.maxAdvanceDays ?? 365, 730), simulatedOccupancy: 0 },
       blockedDates: db.blockedDates,
       requests: [
         ...db.requests.filter((x) => x.id !== r.id),

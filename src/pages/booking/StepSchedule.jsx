@@ -5,6 +5,7 @@ import { StepActions } from '../../components/booking/StepActions.jsx';
 import { stepPath } from '../../components/booking/Stepper.jsx';
 import { MonthCalendar } from '../../components/ui/MonthCalendar.jsx';
 import { DemoNotice } from '../../components/ui/misc.jsx';
+import { noticeLabel } from '../../lib/notice.js';
 import { DAY_STATUS_LABEL, firstSelectableDate, getDayAvailability, isSelectable } from '../../lib/availability.js';
 import { addDays, formatLongDate, formatTime, parseISODate, today } from '../../lib/date.js';
 import { formatDuration } from '../../lib/format.js';
@@ -134,7 +135,7 @@ function ScheduleView({ data, agendaError }) {
             <li><span className="legend__sw legend__sw--limited" /> Pocos horarios</li>
             <li><span className="legend__sw legend__sw--off" /> No disponible</li>
           </ul>
-          {isWedding && <p className="muted small">Las bodas se reservan con al menos {rules.minNoticeDays} días de antelación.</p>}
+          {isWedding && <p className="muted small">Las bodas se reservan con al menos {noticeLabel(rules)} de antelación.</p>}
         </div>
 
         <div className="schedule__slots" aria-live="polite">

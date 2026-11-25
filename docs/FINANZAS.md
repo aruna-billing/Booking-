@@ -14,7 +14,7 @@ Cada pago que se **verifica** en Booking aparece solo en Finanzas como **ingreso
 - **Marca y dueño.** Todo va a la marca y a la cuenta de Finanzas que pongas en los secretos. A ninguna otra cuenta del mismo Finanzas le cae nada.
 - **Cuenta de banco.** No se asigna. Se asigna en Finanzas → Bancos, como siempre.
 - **Cambios en Finanzas.** Lo que cambies después (fecha, monto, método, cuenta) se respeta: cada pago entra una sola vez.
-- **Pagos anteriores.** Solo pasan los pagos que se verifiquen **después** de instalar esto.
+- **Pagos anteriores.** Pasan solos los pagos que se verifiquen **después** de instalar esto. Los de antes se envían una sola vez con el paso 4.
 
 Se instala una sola vez, en dos partes: primero en Finanzas y después en Booking.
 
@@ -55,6 +55,41 @@ Se instala una sola vez, en dos partes: primero en Finanzas y después en Bookin
 
 Verifica un pago en Booking (o acepta una sesión con su comprobante). En unos segundos debe aparecer en Finanzas → **Ingresos** como «Reserva Booking · Plan · Anticipo · sin factura», y el cliente en **Clientes**.
 
+## 4. Pagos anteriores (una sola vez)
+
+Envía a Finanzas todos los pagos ya verificados de reservas anteriores, cada uno con la fecha en que se verificó. Lo que ya esté en Finanzas no se duplica, y se puede repetir sin problema.
+
+Primero, una sola vez, en Supabase **de Booking** → **SQL Editor**, da permiso a la función para leer las reservas:
+
+```sql
+grant usage on schema public to service_role;
+grant select on public.booking_requests to service_role;
+```
+
+Después, en el mismo SQL Editor → **New query**. Cambia `TU-PROYECTO` por el código de tu proyecto de Booking (el que sale en la dirección del navegador) y `TU_WEBHOOK_SECRET` por tu `WEBHOOK_SECRET`. No guardes esta consulta con el secreto escrito.
+
+**a) Vista previa** (no escribe nada en Finanzas, solo cuenta):
+
+```sql
+create extension if not exists pg_net;
+select net.http_post(
+  url := 'https://TU-PROYECTO.supabase.co/functions/v1/finanzas-sync',
+  headers := jsonb_build_object('Content-Type', 'application/json', 'x-webhook-secret', 'TU_WEBHOOK_SECRET'),
+  body := jsonb_build_object('action', 'sync-all', 'dry_run', true),
+  timeout_milliseconds := 60000
+);
+```
+
+Espera unos 10 segundos y mira el resultado con:
+
+```sql
+select status_code, content from net._http_response order by created desc limit 1;
+```
+
+Dice cuántas reservas y pagos enviaría, el total en RD$ y US$, cuántos clientes nuevos se crearían y desde qué fecha.
+
+**b) Envío de verdad:** la misma consulta de a), pero con `'dry_run', false`. Luego mira el resultado con la segunda consulta: `pagos_nuevos` es lo que entró en Finanzas.
+
 ## Si no aparece
 
 Supabase de Booking → **Edge Functions → finanzas-sync → Logs**. El mensaje dice qué falta:
@@ -64,4 +99,5 @@ Supabase de Booking → **Edge Functions → finanzas-sync → Logs**. El mensaj
 - **«Faltan secretos…»:** falta alguno de los cuatro.
 - **Error 401 o «Invalid API key»:** la `FINANZAS_SECRET_KEY` no es la Secret key de Finanzas.
 - **Error de columnas (`brand`, `source_ref`…):** falta ejecutar `FINANZAS-booking.sql` en Finanzas.
+- **«permission denied for table …»:** si la tabla es `brands`, `clients` o `payments`, vuelve a ejecutar `FINANZAS-booking.sql` en **Finanzas**. Si es `booking_requests`, ejecuta los dos `grant` del paso 4 en **Booking**.
 - **Sin ninguna línea en Logs:** revisa el webhook (paso 2.3): tabla `booking_requests`, eventos Insert y Update y la cabecera.

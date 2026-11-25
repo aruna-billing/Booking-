@@ -16,7 +16,7 @@ import { brandStyle } from '../../components/ui/BrandMark.jsx';
 import { formatDuration, formatFileSize, formatMoney } from '../../lib/format.js';
 import { uploadToLibrary, MEDIA_OPTS, ACCEPT } from '../../lib/mediaUpload.js';
 import { VIDEO_LIMITS, formatSeconds } from '../../lib/videos.js';
-import { removeImage, updateImage, useImageLibrary } from '../../store/imageStore.js';
+import { updateImage, useImageLibrary } from '../../store/imageStore.js';
 import * as api from '../../services/api.js';
 
 /**
@@ -781,14 +781,13 @@ function ImageDetail({ id, onClose }) {
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title={isVid ? 'Eliminar video' : 'Eliminar imagen'}
-        message={uses.length ? `Esta imagen se usa en ${uses.length} lugar${uses.length === 1 ? '' : 'es'} (${uses.join('; ')}). Esos espacios volverán a mostrar el marcador.` : `${isVid ? 'El video' : 'La imagen'} se borrará de la biblioteca.`}
+        message={`${uses.length ? `${isVid ? 'Este video' : 'Esta imagen'} se usa en ${uses.length} lugar${uses.length === 1 ? '' : 'es'} (${uses.join('; ')}). Esos espacios volverán a mostrar el marcador. ` : ''}${isVid ? 'El video' : 'La imagen'} pasa a la Papelera durante 30 días: si la restauras, vuelve a la biblioteca.`}
         confirmLabel="Eliminar"
         danger
         onConfirm={async () => {
           try {
-            await api.clearImageReferences(id);
-            await removeImage(id);
-            toast(isVid ? 'Video eliminado' : 'Imagen eliminada', 'red');
+            await api.trashMedia(id, { name: img.alt || img.name, kind: img.kind, uses });
+            toast(isVid ? 'Video enviado a la papelera' : 'Imagen enviada a la papelera', 'neutral');
             onClose();
           } catch (e) {
             toast(e.message, 'red');

@@ -373,7 +373,7 @@ export function RequestDetail({ id }) {
         open={!!removingCharge}
         onClose={() => setRemovingCharge(null)}
         title="Quitar cargo"
-        message={removingCharge ? `Se quitará «${removingCharge.name}» (${formatMoney(removingCharge.total, r.currency)}) del total. Queda anotado en el historial.` : ''}
+        message={removingCharge ? `Se quitará «${removingCharge.name}» (${formatMoney(removingCharge.total, r.currency)}) del total. Queda anotado en el historial y en la Papelera, por si necesitas restaurarlo.` : ''}
         confirmLabel="Quitar cargo"
         danger
         onConfirm={async () => {
@@ -451,14 +451,14 @@ export function RequestDetail({ id }) {
       <ConfirmDialog
         open={dialog === 'delete'}
         onClose={() => setDialog(null)}
-        title="Borrar solicitud"
-        message={`Se borrará para siempre la solicitud de ${r.client.firstName} ${r.client.lastName} (${shortId(r.id)}), con sus pagos, notas, comprobante e imágenes. No se puede deshacer. Si solo quieres liberar la fecha, usa «Cancelar reserva».`}
-        confirmLabel="Borrar para siempre"
+        title="Mover a la papelera"
+        message={`La solicitud de ${r.client.firstName} ${r.client.lastName} (${shortId(r.id)}) sale de las listas, de la agenda y del calendario. Puedes restaurarla tal como está (pagos, notas y comprobantes) desde la Papelera durante 30 días. Si solo quieres liberar la fecha, usa «Cancelar reserva».`}
+        confirmLabel="Mover a la papelera"
         danger
         onConfirm={async () => {
           try {
             await api.deleteRequest(r.id);
-            toast('Solicitud borrada', 'neutral');
+            toast('Solicitud enviada a la papelera', 'neutral');
             navigate('/admin/solicitudes', { replace: true });
           } catch (e) {
             toast(e.message, 'red');

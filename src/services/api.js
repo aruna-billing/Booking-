@@ -20,6 +20,7 @@ import { cleanPlanIds, couponStatus, findCoupon, normalizeCode, validateCoupon }
 import { approvedLine, chargeLabel, chargeLine, pendingChargesOf, proposedChargeLine, recomputeQuote, validateCharge } from '../lib/charges.js';
 import { needsPrint } from '../lib/physical.js';
 import * as cloud from './cloud.js';
+import { purgeTrashedImage, restoreTrashedImage, trashImage } from '../store/imageStore.js';
 
 // En la demo se simula la espera de un servidor; en modo real la espera es la de verdad.
 const delay = (ms = 350) => (LIVE ? Promise.resolve() : new Promise((r) => setTimeout(r, ms)));
@@ -244,14 +245,19 @@ export async function cancelRequest(id, reason) {
   await updateRequest(id, { status: 'cancelled' }, `Reserva cancelada${reason ? `: ${reason}` : ''}`);
 }
 
-/** Borra la solicitud para siempre (con sus pagos, notas y archivos). Solo administradores. */
+/**
+ * Manda la solicitud a la Papelera: deja de ocupar agenda y sale del panel y de Google Calendar.
+ * Se puede restaurar (con su número, pagos y notas) durante 30 días. Solo administradores.
+ */
 export async function deleteRequest(id) {
   guard('requests.delete', id);
   await delay();
   const r = getState().requests.find((x) => x.id === id);
   if (!r) throw new Error('La solicitud ya no existe.');
-  if (LIVE) await cloud.deleteRequest(r);
-  setState((s) => ({ ...s, requests: s.requests.filter((x) => x.id !== id) }));
+  const label = `${r.client?.firstName ?? ''} ${r.client?.lastName ?? ''}`.trim() || 'Solicitud';
+  const detail = [`#${String(r.id).replace(/^req-/, '')}`, r.planName, r.date ? `${formatShortDate(r.date)}${r.time ? ` ${formatTime(r.time)}` : ''}` : '', r.quote ? moneyOf(r, r.quote.total) : ''].filter(Boolean).join(' · ');
+  if (LIVE) return cloud.trashRequest(r, { by: actor(), label, detail });
+  setState((s) => ({ ...s, requests: s.requests.filter((x) => x.id !== id), trash: [trashEntry('request', id, { brandId: r.brandId, label, detail, data: r }), ...(s.trash ?? [])] }));
 }
 
 /**
@@ -397,6 +403,14 @@ export async function removeCharge(id, lineId) {
   if (paid > quote.total) throw new Error('No se puede quitar: lo ya pagado superaría el total. Anula antes el pago de este cargo.');
   await delay(150);
   await updateRequest(id, { quote }, `Cargo quitado: ${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''} (${moneyOf(r, line.total)})`);
+  await putTrash(
+    trashEntry('charge', line.id, {
+      brandId: r.brandId,
+      label: `${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''}`,
+      detail: `${moneyOf(r, line.total)} · ${r.client?.firstName ?? ''} ${r.client?.lastName ?? ''} · #${String(r.id).replace(/^req-/, '')}`.replace(/\s+·/g, ' ·'),
+      data: { requestId: id, line },
+    })
+  );
 }
 
 // ───────────────────────── Cargos propuestos (asistente → administrador) ─────────────────────────
@@ -685,6 +699,16 @@ export async function deleteBrand(brandId) {
   const s = getState();
   if (s.brands.length <= 1) throw new Error('Debe quedar al menos una marca.');
   if (brandUsage(s, brandId).requests > 0) throw new Error('La marca tiene solicitudes registradas. Ocúltala en lugar de eliminarla.');
+  const b = s.brands.find((x) => x.id === brandId);
+  const snapshot = {
+    brand: b,
+    plans: s.plans.filter((p) => p.brandId === brandId),
+    extras: s.extras.filter((x) => x.brandId === brandId),
+    bankAccounts: s.bankAccounts.filter((a) => a.brandId === brandId),
+    blockedDates: s.blockedDates.filter((x) => x.brandId === brandId),
+    rules: s.rules[brandId] ?? null,
+    terms: s.terms[brandId] ?? null,
+  };
   setState((st) => {
     const { [brandId]: _r, ...rules } = st.rules;
     const { [brandId]: _t, ...terms } = st.terms;
@@ -699,7 +723,9 @@ export async function deleteBrand(brandId) {
       terms,
     };
   });
-  return persistConfig();
+  const ok = await persistConfig();
+  if (ok) await putTrash(trashEntry('brand', brandId, { label: b?.name ?? 'Marca', detail: `${snapshot.plans.length} plan${snapshot.plans.length === 1 ? '' : 'es'} · ${snapshot.extras.length} extra${snapshot.extras.length === 1 ? '' : 's'}`, data: snapshot }));
+  return ok;
 }
 
 // ───────────────────────── Personalización web ─────────────────────────
@@ -785,8 +811,13 @@ export async function deleteUser(id) {
   if (id === me.id) throw new Error('No puedes eliminar tu propio usuario.');
   const next = getState().users.filter((u) => u.id !== id);
   if (activeAdmins(next).length === 0) throw new Error('Debe quedar al menos un administrador activo.');
-  if (LIVE) return cloud.removeStaff(id);
-  setState((st) => ({ ...st, users: next }));
+  const u = getState().users.find((x) => x.id === id);
+  const entry = trashEntry('user', id, { label: u?.name || u?.email || 'Usuario', detail: [u?.email, u?.role === 'admin' ? 'Administrador' : 'Asistente'].filter(Boolean).join(' · '), data: u });
+  if (LIVE) {
+    await cloud.removeStaff(id);
+    return putTrash(entry);
+  }
+  setState((st) => ({ ...st, users: next, trash: [entry, ...(st.trash ?? [])] }));
 }
 
 // ───────────────────────── Cupones ─────────────────────────
@@ -859,7 +890,9 @@ export async function deleteCoupon(id) {
   }
   await delay(150);
   setState((st) => ({ ...st, coupons: st.coupons.filter((x) => x.id !== id) }));
-  return persistConfig();
+  const ok = await persistConfig();
+  if (ok) await putTrash(trashEntry('coupon', id, { label: c.code, detail: c.type === 'percent' ? `${c.value}% de descuento` : `Descuento fijo de ${c.value}`, data: c }));
+  return ok;
 }
 
 // ───────────────────────── Seguimientos ─────────────────────────
@@ -988,4 +1021,142 @@ export async function undoTrackingStep(id) {
   if (r.selection?.doneAt) return updateRequest(id, { selection: { ...r.selection, doneAt: null, count: null, note: '' } }, 'Selección deshecha: vuelve a «selección»');
   if (r.status === 'completed') return updateRequest(id, { status: 'confirmed', shotAt: null, selection: null }, 'Fotos realizadas deshecho: vuelve a «reservado»');
   throw new Error('No hay ninguna etapa para deshacer.');
+}
+
+// ───────────────────────── Papelera ─────────────────────────
+// Lo borrado (solicitudes, cargos, cupones, marcas, usuarios, imágenes y videos) queda aquí
+// TRASH_DAYS días: se puede restaurar o eliminar para siempre. Solo administradores.
+// Modo real: tabla trash_items (supabase/01_instalacion.sql). Demo: state.trash.
+
+export const TRASH_DAYS = 30;
+export const TRASH_KINDS = {
+  request: 'Solicitud',
+  charge: 'Cargo',
+  coupon: 'Cupón',
+  brand: 'Marca',
+  user: 'Usuario',
+  media: 'Imagen o video',
+};
+
+function trashEntry(kind, itemId, { brandId = null, label = '', detail = '', data }) {
+  return { id: `tr-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, kind, itemId: String(itemId), brandId, label, detail, data, deletedAt: now(), deletedBy: actor() };
+}
+
+async function putTrash(entry) {
+  if (LIVE) await cloud.addTrash(entry);
+  setState((s) => ({ ...s, trash: [entry, ...(s.trash ?? []).filter((x) => x.id !== entry.id)] }));
+}
+
+async function dropTrash(entry) {
+  if (LIVE && entry.kind !== 'request') await cloud.removeTrashRow(entry.id);
+  setState((s) => ({ ...s, trash: (s.trash ?? []).filter((x) => x.id !== entry.id) }));
+}
+
+/** Fecha en que se elimina sola (ISO). */
+export const trashExpiresAt = (entry) => new Date(new Date(entry.deletedAt).getTime() + TRASH_DAYS * 864e5).toISOString();
+
+/** Carga la papelera (modo real) y elimina lo que lleva más de TRASH_DAYS días. */
+export async function loadTrash() {
+  requirePermission('trash.manage');
+  if (LIVE) await cloud.loadTrash();
+  const expired = (getState().trash ?? []).filter((t) => trashExpiresAt(t) < now());
+  for (const t of expired) await purgeTrash(t.id).catch(() => {});
+  return expired.length;
+}
+
+/** Imagen o video a la papelera: se quita de los lugares donde se usa y de la biblioteca. */
+export async function trashMedia(id, { name = '', kind = 'image', uses = [] } = {}) {
+  requirePermission('web.manage');
+  await clearImageReferences(id);
+  const data = await trashImage(id);
+  await putTrash(trashEntry('media', id, { label: name || (kind === 'video' ? 'Video' : 'Imagen'), detail: `${kind === 'video' ? 'Video' : 'Imagen'}${uses.length ? ` · se usaba en: ${uses.join('; ')}` : ''}`, data }));
+}
+
+/** Restaura algo de la papelera. Devuelve un texto para el aviso. */
+export async function restoreTrash(trashId) {
+  requirePermission('trash.manage');
+  const t = (getState().trash ?? []).find((x) => x.id === trashId);
+  if (!t) throw new Error('Ya no está en la papelera.');
+  await delay(200);
+  const s = getState();
+  switch (t.kind) {
+    case 'request': {
+      if (LIVE) {
+        await cloud.restoreRequest(t.id, t.data?.payload?.status ?? t.data?.status);
+        setState((st) => ({ ...st, trash: (st.trash ?? []).filter((x) => x.id !== t.id) }));
+        return 'Solicitud restaurada';
+      }
+      if (s.requests.some((r) => r.id === t.itemId)) throw new Error('Ya existe una solicitud con ese número.');
+      const r = { ...t.data, history: [...(t.data.history ?? []), { at: now(), label: 'Restaurada desde la papelera', by: actor() }] };
+      setState((st) => ({ ...st, requests: [r, ...st.requests], trash: (st.trash ?? []).filter((x) => x.id !== t.id) }));
+      return 'Solicitud restaurada';
+    }
+    case 'charge': {
+      const { requestId, line } = t.data;
+      const r = s.requests.find((x) => x.id === requestId);
+      if (!r) throw new Error('La solicitud de este cargo no está (si está en la papelera, restáurala primero).');
+      if (r.quote.lines.some((l) => l.id === line.id)) throw new Error('Ese cargo ya está en la solicitud.');
+      const quote = recomputeQuote({ ...r.quote, lines: [...r.quote.lines, line] });
+      await updateRequest(requestId, { quote }, `Cargo restaurado desde la papelera: ${line.name}${line.quantity > 1 ? ` × ${line.quantity}` : ''} (${moneyOf(r, line.total)})`);
+      await dropTrash(t);
+      return 'Cargo restaurado';
+    }
+    case 'coupon': {
+      const c = t.data;
+      if (s.coupons.some((x) => normalizeCode(x.code) === normalizeCode(c.code))) throw new Error(`Ya existe otro cupón con el código ${c.code}.`);
+      setState((st) => ({ ...st, coupons: [...st.coupons, c] }));
+      if (!(await persistConfig())) throw new Error(SAVE_FAILED);
+      await dropTrash(t);
+      return 'Cupón restaurado';
+    }
+    case 'brand': {
+      const d = t.data;
+      if (s.brands.some((b) => b.id === d.brand.id)) throw new Error('Esa marca ya existe.');
+      setState((st) => ({
+        ...st,
+        brands: [...st.brands, d.brand],
+        plans: [...st.plans, ...(d.plans ?? [])],
+        extras: [...st.extras, ...(d.extras ?? [])],
+        bankAccounts: [...st.bankAccounts, ...(d.bankAccounts ?? [])],
+        blockedDates: [...st.blockedDates, ...(d.blockedDates ?? [])],
+        rules: d.rules ? { ...st.rules, [d.brand.id]: d.rules } : st.rules,
+        terms: d.terms ? { ...st.terms, [d.brand.id]: d.terms } : st.terms,
+      }));
+      if (!(await persistConfig())) throw new Error(SAVE_FAILED);
+      await dropTrash(t);
+      return 'Marca restaurada';
+    }
+    case 'user': {
+      const u = t.data;
+      if (s.users.some((x) => x.id === u.id || (u.email && x.email?.toLowerCase() === u.email.toLowerCase()))) throw new Error('Ese usuario ya está en el equipo.');
+      if (LIVE) await cloud.addStaff({ ...u, brandIds: u.brandIds ?? null });
+      else setState((st) => ({ ...st, users: [...st.users, u] }));
+      await dropTrash(t);
+      return 'Usuario restaurado';
+    }
+    case 'media': {
+      await restoreTrashedImage(t.data);
+      await dropTrash(t);
+      return 'Restaurada en la biblioteca (vuelve a elegirla donde se usaba)';
+    }
+    default:
+      throw new Error('No se puede restaurar.');
+  }
+}
+
+/** Elimina para siempre algo de la papelera (y sus archivos). */
+export async function purgeTrash(trashId) {
+  requirePermission('trash.manage');
+  const t = (getState().trash ?? []).find((x) => x.id === trashId);
+  if (!t) return;
+  if (t.kind === 'request' && LIVE) await cloud.purgeRequestFiles(t.data?.payload ?? t.data);
+  if (t.kind === 'media') await purgeTrashedImage(t.data);
+  if (LIVE) await cloud.removeTrashRow(t.id);
+  setState((s) => ({ ...s, trash: (s.trash ?? []).filter((x) => x.id !== t.id) }));
+}
+
+/** Vacía la papelera. */
+export async function emptyTrash() {
+  requirePermission('trash.manage');
+  for (const t of [...(getState().trash ?? [])]) await purgeTrash(t.id);
 }

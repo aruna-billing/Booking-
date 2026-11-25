@@ -66,6 +66,19 @@ ya editadas:
   existir esta etapa cuentan como completas.
 - «Deshacer último paso» también deshace estos dos pasos.
 
+## Papelera
+
+Todo lo que se borra en el panel (solicitudes, cargos, cupones, marcas, usuarios, imágenes y
+videos) va a la **Papelera** (solo administradores): se restaura tal como estaba o se elimina para
+siempre; a los 30 días se elimina sola. Tabla `trash_items` y funciones `trash_booking_request` /
+`restore_booking_request` en `supabase/01_instalacion.sql`. Una solicitud restaurada no reenvía
+correos (`payload.restoredAt`).
+
+## Antelación mínima en días u horas
+
+`rules.minNoticeUnit` = `days` (usa `minNoticeDays`) o `hours` (usa `minNoticeHours`). Lógica en
+`src/lib/notice.js` y `src/lib/availability.js`; el servidor lo valida en `create_booking_request`.
+
 ## Pagos automáticos a Finanzas
 
 Cada pago verificado en Booking entra solo en Finanzas como ingreso sin factura, con la fecha del día

@@ -21,6 +21,7 @@ import { Personalization } from './pages/admin/Personalization.jsx';
 import { Users } from './pages/admin/Users.jsx';
 import { Tracking } from './pages/admin/Tracking.jsx';
 import { Coupons } from './pages/admin/Coupons.jsx';
+import { Trash } from './pages/admin/Trash.jsx';
 import { AdminLogin } from './pages/admin/Login.jsx';
 import { LIVE } from './lib/mode.js';
 import { useAuthState } from './lib/auth.js';
@@ -44,6 +45,7 @@ const ADMIN_ROUTES = [
   { perm: 'brands.manage', pattern: '/admin/marcas', title: 'Marcas', render: () => <BrandsSettings /> },
   { perm: 'users.manage', pattern: '/admin/usuarios', title: 'Usuarios y roles', render: () => <Users /> },
   { perm: 'terms.manage', pattern: '/admin/terminos', title: 'Términos', render: () => <TermsAdmin /> },
+  { perm: 'trash.manage', pattern: '/admin/papelera', title: 'Papelera', render: () => <Trash /> },
 ];
 
 function Router() {

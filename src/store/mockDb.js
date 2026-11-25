@@ -35,6 +35,7 @@ function buildInitialState() {
     blockedDates,
     requests: buildDemoRequests(),
     coupons: structuredClone(demoCoupons),
+    trash: [], // papelera (ver api.js «Papelera»)
     builtOn: toISODate(today()),
   };
 }
@@ -53,6 +54,7 @@ function buildLiveState() {
     blockedDates: [],
     requests: [],
     coupons: [], // solo los administradores los cargan (configuración privada)
+    trash: [], // papelera: solo administradores (tabla trash_items)
     busy: {}, // { [brandId]: [{ date, time, durationMin }] } horarios ocupados (sin datos personales)
     builtOn: null,
   };
@@ -95,7 +97,7 @@ function load() {
       const parsed = JSON.parse(raw);
       // Las fechas demo son relativas: si cambió el día, se regeneran.
       if (parsed?.builtOn === toISODate(today())) {
-        return { ...parsed, users: parsed.users ?? structuredClone(users), coupons: parsed.coupons ?? structuredClone(demoCoupons) };
+        return { ...parsed, users: parsed.users ?? structuredClone(users), coupons: parsed.coupons ?? structuredClone(demoCoupons), trash: parsed.trash ?? [] };
       }
     }
   } catch {

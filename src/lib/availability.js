@@ -1,5 +1,6 @@
 import { addDays, parseISODate, today, toISODate } from './date.js';
 import { LIVE } from './mode.js';
+import { firstNoticeDate, noticeCutoff } from './notice.js';
 
 // Estados de día: 'past' | 'out_of_range' | 'closed' | 'blocked' | 'full' | 'limited' | 'available'
 //
@@ -58,12 +59,15 @@ function bookedBlocks(brandId, iso, requests, rules) {
  * @param {object} ctx { brandId, rules, blockedDates, requests, window? { from, to } }
  * @returns {{status, reason?, slots: {time, end, available}[]}}
  */
-export function getDayAvailability(iso, { brandId, rules, blockedDates = [], requests = [], window = null }, durationMin) {
+export function getDayAvailability(iso, { brandId, rules, blockedDates = [], requests = [], window = null, now = new Date() }, durationMin) {
   const dur = durationMin || rules.defaultDurationMin;
   const date = parseISODate(iso);
   const t = today();
-  const first = addDays(t, rules.minNoticeDays);
+  const first = firstNoticeDate(rules, now); // antelación mínima en días u horas (lib/notice.js)
   const last = addDays(t, rules.maxAdvanceDays);
+  // Horarios que empiezan antes de este momento no se ofrecen (ya pasaron o no cumplen la antelación en horas).
+  const cut = noticeCutoff(rules, now);
+  const cutMin = toISODate(cut) === iso ? cut.getHours() * 60 + cut.getMinutes() + (cut.getSeconds() || cut.getMilliseconds() ? 1 : 0) : -1;
 
   if (date < t) return { status: 'past', slots: [] };
   if (date < first || date > last) return { status: 'out_of_range', slots: [] };
@@ -77,7 +81,8 @@ export function getDayAvailability(iso, { brandId, rules, blockedDates = [], req
 
   if (rules.mode === 'exclusive_day') {
     const full = busy.length >= rules.maxBookingsPerDay;
-    const slots = rules.startTimes.map((time) => ({ time, end: endTime(time, dur), available: !full }));
+    const slots = rules.startTimes.filter((time) => toMin(time) >= cutMin).map((time) => ({ time, end: endTime(time, dur), available: !full }));
+    if (!slots.length) return { status: 'out_of_range', slots: [] };
     return { status: full ? 'full' : 'available', slots };
   }
 
@@ -89,11 +94,13 @@ export function getDayAvailability(iso, { brandId, rules, blockedDates = [], req
   const slots = [];
   for (let s = open; s + dur <= close; s += rules.startStepMin) {
     const e = s + dur;
+    if (s < cutMin) continue; // antelación mínima / ya pasó
     // Un horario que cruza una pausa no se ofrece.
     if (breaks.some((b) => overlaps(s, e, b.start, b.end))) continue;
     const taken = busy.some((b) => overlaps(s, e, b.start - buffer, b.end + buffer));
     slots.push({ time: fromMin(s), end: fromMin(e), available: !taken });
   }
+  if (!slots.length && cutMin >= 0) return { status: 'out_of_range', slots: [] };
   const free = slots.filter((x) => x.available).length;
   if (free === 0 || busy.length >= rules.maxBookingsPerDay) {
     return { status: 'full', slots: slots.map((x) => ({ ...x, available: false })) };
@@ -104,7 +111,7 @@ export function getDayAvailability(iso, { brandId, rules, blockedDates = [], req
 export const isSelectable = (status) => status === 'available' || status === 'limited';
 
 export const firstSelectableDate = (ctx, durationMin) => {
-  let d = addDays(today(), ctx.rules.minNoticeDays);
+  let d = firstNoticeDate(ctx.rules, ctx.now ?? new Date());
   for (let i = 0; i < ctx.rules.maxAdvanceDays; i++) {
     const iso = toISODate(d);
     if (isSelectable(getDayAvailability(iso, ctx, durationMin).status)) return iso;

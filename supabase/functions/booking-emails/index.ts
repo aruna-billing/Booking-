@@ -319,6 +319,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export function kindFor(type: string, record: any, old: any) {
   const status = record?.payload?.status ?? record?.status;
   const before = old?.payload?.status ?? old?.status;
+  // Una solicitud restaurada desde la Papelera vuelve a entrar como INSERT: no se reenvía el correo.
+  if (type === 'INSERT' && record?.payload?.restoredAt) return null;
   if (type === 'INSERT' && status === 'pending_review') return 'review';
   if (type === 'UPDATE' && status === 'confirmed' && before !== 'confirmed') return 'confirmed';
   // Cambio de fecha hecho desde el panel con «Avisar al cliente por correo».

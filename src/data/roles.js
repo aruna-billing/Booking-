@@ -10,7 +10,7 @@ export const PERMISSIONS = [
   { key: 'tracking.view', label: 'Ver seguimientos (etapas de cada cliente)' },
   { key: 'tracking.update', label: 'Marcar fotos realizadas y entregas' },
   { key: 'requests.manage', label: 'Completar, reabrir o cancelar reservas y escribir notas internas' },
-  { key: 'requests.delete', label: 'Borrar solicitudes para siempre' },
+  { key: 'requests.delete', label: 'Borrar solicitudes (van a la papelera)' },
   { key: 'payments.manage', label: 'Verificar, registrar y anular pagos; añadir cargos y aprobar los propuestos' },
   { key: 'charges.propose', label: 'Proponer cargos (un administrador debe aprobarlos)' },
   { key: 'finance.view', label: 'Ver finanzas y cobros' },
@@ -23,6 +23,7 @@ export const PERMISSIONS = [
   { key: 'terms.manage', label: 'Editar términos y condiciones' },
   { key: 'coupons.manage', label: 'Crear y editar cupones de descuento' },
   { key: 'users.manage', label: 'Gestionar usuarios y roles' },
+  { key: 'trash.manage', label: 'Ver la papelera: restaurar o eliminar para siempre' },
 ];
 
 export const ROLES = {

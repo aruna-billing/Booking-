@@ -100,12 +100,36 @@ export function RulesEditor({ brand, rules }) {
           </Field>
         )}
 
-        <div className="form__row form__row--3">
+        <div className="form__row form__row--3 form__row--top">
           <Field label="Máx. reservas por día" required error={err('maxBookingsPerDay')}>
             <input type="number" min={1} max={50} value={r.maxBookingsPerDay} onChange={(e) => set({ maxBookingsPerDay: e.target.value })} />
           </Field>
-          <Field label="Antelación mínima (días)" required error={err('minNoticeDays')} hint="0 = se puede reservar para hoy.">
-            <input type="number" min={0} max={60} value={r.minNoticeDays} onChange={(e) => set({ minNoticeDays: e.target.value })} />
+          <Field
+            label="Antelación mínima"
+            required
+            error={err('minNotice')}
+            hint={r.minNoticeUnit === 'hours' ? '0 = hasta el último momento.' : '0 = se puede reservar para hoy.'}
+          >
+            <div className="notice-input">
+              <input
+                type="number"
+                min={0}
+                max={r.minNoticeUnit === 'hours' ? 720 : 60}
+                value={r.minNoticeUnit === 'hours' ? r.minNoticeHours ?? 0 : r.minNoticeDays}
+                onChange={(e) => set(r.minNoticeUnit === 'hours' ? { minNoticeHours: e.target.value } : { minNoticeDays: e.target.value })}
+                aria-label={r.minNoticeUnit === 'hours' ? 'Antelación mínima en horas' : 'Antelación mínima en días'}
+                data-testid="notice-value"
+              />
+              <select
+                value={r.minNoticeUnit === 'hours' ? 'hours' : 'days'}
+                onChange={(e) => set({ minNoticeUnit: e.target.value })}
+                aria-label="Unidad de la antelación"
+                data-testid="notice-unit"
+              >
+                <option value="days">días</option>
+                <option value="hours">horas</option>
+              </select>
+            </div>
           </Field>
           <Field label="Reservable hasta (días)" required error={err('maxAdvanceDays')}>
             <input type="number" min={7} max={730} value={r.maxAdvanceDays} onChange={(e) => set({ maxAdvanceDays: e.target.value })} />

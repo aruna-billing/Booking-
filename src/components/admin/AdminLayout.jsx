@@ -35,6 +35,7 @@ const NAV = [
   { perm: 'brands.manage', to: '/admin/marcas', label: 'Marcas', icon: 'M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.6 0-1.3-1-1.4-1-2.6 0-1 .8-1.8 1.8-1.8H17a4 4 0 004-4c0-4.4-4-8-9-8zM7.5 12a1 1 0 100-.1M10 7.5a1 1 0 100-.1M15 7.5a1 1 0 100-.1' },
   { perm: 'terms.manage', to: '/admin/terminos', label: 'Términos', icon: 'M7 3h10v18H7zM10 7h4M10 11h4M10 15h2' },
   { perm: 'users.manage', to: '/admin/usuarios', label: 'Usuarios y roles', icon: 'M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM2.5 20a6.5 6.5 0 0113 0M16 4.5a3.5 3.5 0 010 6.5M18 14a5.5 5.5 0 013.5 6' },
+  { perm: 'trash.manage', to: '/admin/papelera', label: 'Papelera', icon: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6' },
 ];
 
 export function AdminLayout({ title, perm, children }) {

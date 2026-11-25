@@ -66,7 +66,8 @@ export async function initImageStore() {
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
-    images = new Map(all.map((x) => [x.id, hydrate(x)]));
+    // Las que están en la papelera (trashedAt) se guardan aparte hasta restaurarlas o eliminarlas.
+    images = new Map(all.filter((x) => !x.trashedAt).map((x) => [x.id, hydrate(x)]));
     snapshot = { ...snapshot, persistent: true };
   } catch {
     snapshot = { ...snapshot, persistent: false };
@@ -178,6 +179,57 @@ export async function removeImage(id) {
       /* ignorar */
     }
   }
+}
+
+// ───────────────────────── Papelera ─────────────────────────
+// Al mandar una imagen o video a la papelera se quita de la biblioteca, pero el archivo
+// se conserva hasta eliminarlo para siempre. Devuelve los datos para restaurarlo.
+
+export async function trashImage(id) {
+  const cur = images.get(id);
+  if (!cur) throw new Error('Ya no está en la biblioteca.');
+  if (LIVE) {
+    const { data, error } = await supabase.from('media').delete().eq('id', id).select('*');
+    if (error) throw new Error(friendlyError(error, 'No se pudo borrar.'));
+    images.delete(id);
+    emit();
+    return data?.[0] ?? { ...toRow(cur), created_at: cur.createdAt };
+  }
+  if (cur.kind === 'video' && cur.src) URL.revokeObjectURL(cur.src);
+  images.delete(id);
+  emit();
+  await save({ ...cur, trashedAt: new Date().toISOString() });
+  return { id, kind: cur.kind, name: cur.name, demo: true };
+}
+
+export async function restoreTrashedImage(data) {
+  if (LIVE) {
+    if (images.has(data.id)) throw new Error('Ya está en la biblioteca.');
+    const { data: row, error } = await supabase.from('media').insert(data).select('*').single();
+    if (error) throw new Error(friendlyError(error, 'No se pudo restaurar.'));
+    images.set(row.id, fromRow(row));
+    emit();
+    return;
+  }
+  let rec = null;
+  if (snapshot.persistent) {
+    rec = await tx('readonly', (st) => st.get(data.id)).catch(() => null);
+  }
+  if (!rec) throw new Error('El archivo ya no está en este navegador (modo demo).');
+  const { trashedAt: _t, ...clean } = rec;
+  images.set(clean.id, hydrate(clean));
+  emit();
+  await save(clean);
+}
+
+/** Borra para siempre el archivo de una imagen o video que estaba en la papelera. */
+export async function purgeTrashedImage(data) {
+  if (LIVE) {
+    const paths = [data.path, data.poster_path].filter(Boolean);
+    if (paths.length) await supabase.storage.from('media').remove(paths).catch(() => {});
+    return;
+  }
+  if (snapshot.persistent) await tx('readwrite', (st) => st.delete(data.id)).catch(() => {});
 }
 
 export async function clearImages() {

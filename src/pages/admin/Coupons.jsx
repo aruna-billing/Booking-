@@ -301,13 +301,13 @@ function CouponEditor({ editing, coupons, brands, plans, uses, money, onClose })
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title="Eliminar cupón"
-        message={`El cupón ${editing.item.code} dejará de existir.`}
+        message={`El cupón ${editing.item.code} dejará de funcionar y pasará a la Papelera, donde puedes restaurarlo durante 30 días.`}
         confirmLabel="Eliminar"
         danger
         onConfirm={async () => {
           try {
             const ok = await api.deleteCoupon(editing.item.id);
-            toast(ok === false ? api.SAVE_FAILED : 'Cupón eliminado', ok === false ? 'red' : 'neutral');
+            toast(ok === false ? api.SAVE_FAILED : 'Cupón enviado a la papelera', ok === false ? 'red' : 'neutral');
             onClose();
           } catch (e) {
             setError(e.message);

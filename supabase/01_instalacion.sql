@@ -12,6 +12,7 @@
 --                        fila 'private' solo para administradores)
 --   · booking_requests   solicitudes de reserva (solo el equipo puede leerlas)
 --   · media              biblioteca de imágenes y videos de la web
+--   · trash_items        papelera (lo borrado en el panel; se restaura o se elimina)
 --   · Buckets de Storage: 'media' (público) y 'receipts' (privado: comprobantes)
 --   · Funciones: create_booking_request (reservas del público, valida precio,
 --     horario, cupones y cupos en el servidor), get_busy_slots (horarios ocupados,
@@ -473,7 +474,9 @@ begin
       raise exception 'Esa fecha no está disponible para este plan. Elige otra.';
     end if;
   end if;
-  if v_date < v_today + coalesce((v_rules->>'minNoticeDays')::integer, 0)
+  -- Antelación mínima: en días (minNoticeDays) o en horas (minNoticeUnit = 'hours', se revisa con la hora más abajo).
+  if v_date < v_today
+     or (coalesce(v_rules->>'minNoticeUnit', 'days') <> 'hours' and v_date < v_today + coalesce((v_rules->>'minNoticeDays')::integer, 0))
      or v_date > v_today + coalesce((v_rules->>'maxAdvanceDays')::integer, 365) then
     raise exception 'Esa fecha ya no se puede reservar. Elige otra.';
   end if;
@@ -495,6 +498,13 @@ begin
   end if;
 
   if v_time is null or v_time !~ '^\d{2}:\d{2}$' then raise exception 'Elige un horario.'; end if;
+  if ((v_date + v_time::time) at time zone 'America/Santo_Domingo') < now() then
+    raise exception 'Ese horario ya pasó. Elige otro.';
+  end if;
+  if v_rules->>'minNoticeUnit' = 'hours'
+     and ((v_date + v_time::time) at time zone 'America/Santo_Domingo') < now() + make_interval(hours => coalesce((v_rules->>'minNoticeHours')::integer, 0)) then
+    raise exception 'Ese horario ya no se puede reservar con tan poca antelación (mínimo % horas). Elige otro.', coalesce((v_rules->>'minNoticeHours')::integer, 0);
+  end if;
   v_start := split_part(v_time, ':', 1)::integer * 60 + split_part(v_time, ':', 2)::integer;
 
   if coalesce(v_rules->>'mode', 'timed') = 'exclusive_day' then
@@ -684,6 +694,91 @@ grant execute on function public.get_plan_usage(text) to anon, authenticated;
 revoke all on function public.add_staff_member(text, text, text, text[]) from public;
 grant execute on function public.add_staff_member(text, text, text, text[]) to authenticated;
 grant execute on function public.is_staff(), public.is_admin(), public.staff_can_see_brand(text) to anon, authenticated;
+
+-- ─────────────────────────── 6b. Papelera ───────────────────────────
+-- Lo que se borra en el panel (solicitudes, cargos, cupones, marcas, usuarios,
+-- imágenes y videos) pasa aquí. Desde la Papelera se restaura o se elimina para
+-- siempre; lo que lleva más de 30 días se elimina solo al abrirla.
+-- Solo los administradores la ven.
+
+create table if not exists public.trash_items (
+  id          text primary key,
+  kind        text not null check (kind in ('request', 'charge', 'coupon', 'brand', 'user', 'media')),
+  item_id     text not null,
+  brand_id    text,
+  label       text not null default '',
+  detail      text not null default '',
+  data        jsonb not null,
+  deleted_by  text not null default '',
+  deleted_at  timestamptz not null default now()
+);
+create index if not exists trash_items_deleted_idx on public.trash_items (deleted_at desc);
+
+alter table public.trash_items enable row level security;
+revoke all on public.trash_items from anon;
+grant select, insert, delete on public.trash_items to authenticated;
+
+drop policy if exists "admin ve la papelera" on public.trash_items;
+create policy "admin ve la papelera" on public.trash_items for select to authenticated using (public.is_admin());
+drop policy if exists "admin manda a la papelera" on public.trash_items;
+create policy "admin manda a la papelera" on public.trash_items for insert to authenticated with check (public.is_admin());
+drop policy if exists "admin vacía la papelera" on public.trash_items;
+create policy "admin vacía la papelera" on public.trash_items for delete to authenticated using (public.is_admin());
+
+-- Mover una solicitud a la papelera: se guarda la fila completa y se quita de
+-- booking_requests (deja de ocupar agenda, no recibe recordatorios y no se ve en el panel).
+-- p_original: la solicitud tal como estaba antes de quitar su evento de Google Calendar
+-- (para quitarlo se marca cancelada un momento); así se restaura con su estado real.
+drop function if exists public.trash_booking_request(text, text, text, text);
+create or replace function public.trash_booking_request(p_id text, p_by text default '', p_label text default '', p_detail text default '', p_original jsonb default null)
+returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_row public.booking_requests;
+  v_data jsonb;
+  v_tid text := 'tr-' || replace(gen_random_uuid()::text, '-', '');
+begin
+  if not public.is_admin() then raise exception 'Solo un administrador puede borrar solicitudes.'; end if;
+  select * into v_row from public.booking_requests where id = p_id for update;
+  if not found then raise exception 'La solicitud ya no existe.'; end if;
+  v_data := to_jsonb(v_row);
+  if p_original is not null and p_original->>'id' = p_id then
+    v_data := v_data || jsonb_build_object('payload', p_original, 'status', coalesce(p_original->>'status', v_row.status));
+  end if;
+  insert into public.trash_items (id, kind, item_id, brand_id, label, detail, data, deleted_by)
+  values (v_tid, 'request', v_row.id, v_row.brand_id, left(coalesce(p_label, ''), 200), left(coalesce(p_detail, ''), 300), v_data, left(coalesce(p_by, ''), 120));
+  delete from public.booking_requests where id = p_id;
+  return v_tid;
+end $$;
+
+-- Restaurar una solicitud de la papelera (con el mismo número).
+create or replace function public.restore_booking_request(p_trash_id text)
+returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+  v_t public.trash_items;
+  v_r jsonb;
+begin
+  if not public.is_admin() then raise exception 'Solo un administrador puede restaurar solicitudes.'; end if;
+  select * into v_t from public.trash_items where id = p_trash_id and kind = 'request' for update;
+  if not found then raise exception 'Ya no está en la papelera.'; end if;
+  v_r := v_t.data;
+  if exists (select 1 from public.booking_requests where id = v_r->>'id') then
+    raise exception 'Ya existe una solicitud con el número %.', v_r->>'id';
+  end if;
+  -- restoredAt: la función de correos no vuelve a enviar «Reserva en revisión».
+  -- La fila vuelve completa (también las marcas del recordatorio, para no repetirlo).
+  insert into public.booking_requests
+  select * from jsonb_populate_record(null::public.booking_requests,
+    v_r || jsonb_build_object('payload', jsonb_set(v_r->'payload', '{restoredAt}', to_jsonb(now()))));
+  delete from public.trash_items where id = p_trash_id;
+  return v_r->>'id';
+end $$;
+
+revoke all on function public.trash_booking_request(text, text, text, text, jsonb) from public, anon;
+grant execute on function public.trash_booking_request(text, text, text, text, jsonb) to authenticated;
+revoke all on function public.restore_booking_request(text) from public, anon;
+grant execute on function public.restore_booking_request(text) to authenticated;
 
 -- ─────────────────────────── 7. Tiempo real ───────────────────────────
 -- El panel se actualiza solo cuando llega una reserva o cambia la configuración.
